@@ -13,6 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import com.mealsbowls.meal.MealAuditLogRepository;
+import com.mealsbowls.payment.PaymentRepository;
+import com.mealsbowls.subscription.SubscriptionRepository;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,6 +30,9 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final CustomerMapper customerMapper;
+    private final SubscriptionRepository subscriptionRepository;
+    private final PaymentRepository paymentRepository;
+    private final MealAuditLogRepository mealAuditLogRepository;
 
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
 
@@ -101,7 +108,7 @@ public class CustomerService {
         if (customer.getStatus() == CustomerStatus.ACTIVE) {
             throw new AppException("Cannot reject an active customer", HttpStatus.BAD_REQUEST);
         }
-        // As per implementation plan, delete the customer record to allow re-registration
+        deleteRelatedEntities(id);
         customerRepository.delete(customer);
     }
 
@@ -109,7 +116,14 @@ public class CustomerService {
     public void deleteCustomer(Long id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
+        deleteRelatedEntities(id);
         customerRepository.delete(customer);
+    }
+
+    private void deleteRelatedEntities(Long customerId) {
+        mealAuditLogRepository.deleteByCustomerId(customerId);
+        paymentRepository.deleteByCustomerId(customerId);
+        subscriptionRepository.deleteByCustomerId(customerId);
     }
 
     @Transactional

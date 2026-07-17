@@ -16,5 +16,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     // Plans expiring within a date window — for reports and dashboard card
     @Query("SELECT s FROM Subscription s JOIN FETCH s.customer JOIN FETCH s.plan WHERE s.status = 'ACTIVE' AND s.expiryDate BETWEEN :from AND :to ORDER BY s.expiryDate ASC")
     List<Subscription> findExpiringBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+    void deleteByCustomerId(Long customerId);
 }
 

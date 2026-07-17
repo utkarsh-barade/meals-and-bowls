@@ -23,5 +23,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     // Sum of PAID payments for a specific date — used for today's collection dashboard card
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.status = 'PAID' AND p.paymentDate = :date")
     Double sumPaidAmountByDate(@Param("date") LocalDate date);
+    void deleteByCustomerId(Long customerId);
 }
 

@@ -26,4 +26,5 @@ public interface MealAuditLogRepository extends JpaRepository<MealAuditLog, Long
     // All SERVED logs for a customer — customer meal report
     @Query("SELECT m FROM MealAuditLog m WHERE m.customer.id = :customerId AND m.action = 'SERVED' ORDER BY m.mealDate DESC, m.mealType")
     List<MealAuditLog> findServedByCustomerId(@Param("customerId") Long customerId);
+    void deleteByCustomerId(Long customerId);
 }
