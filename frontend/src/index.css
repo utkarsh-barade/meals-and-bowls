@@ -1,0 +1,90 @@
+/* =============================================================
+   Meals & Bowls — Global CSS
+   DESIGN.md color palette as CSS custom properties
+   ============================================================= */
+
+/* Google Fonts — Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Design Tokens ─────────────────────────────────────── */
+:root {
+  /* Primary */
+  --color-primary:       #16A34A;
+  --color-primary-hover: #15803D;
+  --color-primary-light: #DCFCE7;
+
+  /* Secondary */
+  --color-secondary:     #F59E0B;
+  --color-secondary-light: #FEF3C7;
+
+  /* Semantic */
+  --color-success:       #22C55E;
+  --color-danger:        #DC2626;
+  --color-info:          #2563EB;
+
+  /* Surfaces */
+  --color-bg:            #F8FAFC;
+  --color-card:          #FFFFFF;
+  --color-border:        #E2E8F0;
+  --color-muted:         #F1F5F9;
+
+  /* Text */
+  --color-text-primary:     #0F172A;
+  --color-text-secondary:   #475569;
+  --color-text-placeholder: #94A3B8;
+
+  /* Layout */
+  --sidebar-width: 256px;
+  --header-height: 64px;
+}
+
+/* ── Base Reset ─────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-sans text-text-primary bg-surface-bg;
+    min-height: 100vh;
+  }
+
+  h1 { @apply text-page-title; }
+  h2 { @apply text-section-title; }
+  h3 { @apply text-card-title; }
+  p  { @apply text-body; }
+}
+
+/* ── Component Utilities ────────────────────────────────────── */
+@layer components {
+  /* Focus ring — consistent across all interactive elements */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  /* Card base style */
+  .card {
+    @apply bg-surface-card rounded-card shadow-card p-6;
+  }
+
+  /* Status badges */
+  .badge-green  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-caption font-medium bg-success/10 text-success; }
+  .badge-yellow { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-caption font-medium bg-secondary-light text-secondary; }
+  .badge-red    { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-caption font-medium bg-danger/10 text-danger; }
+  .badge-blue   { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-caption font-medium bg-info/10 text-info; }
+
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+}

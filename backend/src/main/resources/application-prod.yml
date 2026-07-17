@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiry-ms: ${JWT_EXPIRY_MS:86400000}
+
+  admin:
+    mobile: ${ADMIN_MOBILE:9999999999}
+    password: ${ADMIN_PASSWORD}
+
+  cors:
+    allowed-origins: ${FRONTEND_URL}
+
+  whatsapp:
+    test-number: ${WHATSAPP_TEST_NUMBER:}
