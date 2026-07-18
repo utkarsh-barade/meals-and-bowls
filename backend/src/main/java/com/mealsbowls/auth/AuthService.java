@@ -76,6 +76,7 @@ public class AuthService {
                 existing.setStatus(CustomerStatus.PENDING);
                 existing.setFullName(request.getFullName());
                 existing.setPassword(passwordEncoder.encode(request.getPassword()));
+                existing.setPhotoUrl("https://api.dicebear.com/7.x/avataaars/svg?seed=" + request.getMobile());
                 customerRepository.save(existing);
                 return null;
             }
@@ -85,6 +86,7 @@ public class AuthService {
                 .fullName(request.getFullName())
                 .mobileNumber(request.getMobile())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .photoUrl("https://api.dicebear.com/7.x/avataaars/svg?seed=" + request.getMobile())
                 .status(CustomerStatus.PENDING)
                 .build();
                 

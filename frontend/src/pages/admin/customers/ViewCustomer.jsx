@@ -5,7 +5,6 @@ import { customerService } from '@/services/customerService';
 import Card from '@/components/ui/Card';
 import { ArrowLeft, User, Phone, Calendar, CreditCard, Activity } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import PhotoUpload from '@/components/ui/PhotoUpload';
 import { subscriptionService } from '@/services/subscriptionService';
 import AssignPlanModal from './AssignPlanModal';
 
@@ -47,7 +46,17 @@ export default function ViewCustomer() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-1">
           <Card.Body className="flex flex-col items-center pt-8">
-            <PhotoUpload customerId={id} currentPhotoUrl={customer.photoUrl} />
+            {customer.photoUrl ? (
+              <img 
+                src={customer.photoUrl.startsWith('http') ? customer.photoUrl : `${import.meta.env.VITE_API_BASE_URL || ''}${customer.photoUrl}`} 
+                alt={customer.fullName} 
+                className="w-32 h-32 rounded-full object-cover bg-surface-muted border border-surface-border shadow-sm" 
+              />
+            ) : (
+              <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-3xl shadow-sm">
+                {customer.fullName?.charAt(0).toUpperCase()}
+              </div>
+            )}
             <h2 className="mt-4 text-card-title text-center break-words w-full">{customer.fullName}</h2>
             <p className="text-text-secondary text-small text-center">{customer.mobileNumber}</p>
           </Card.Body>

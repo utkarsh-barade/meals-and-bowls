@@ -110,7 +110,7 @@ export default function Customers() {
                           <div className="flex items-center gap-3">
                             {customer.photoUrl ? (
                               <img 
-                                src={customer.photoUrl.startsWith('blob:') ? customer.photoUrl : `${import.meta.env.VITE_API_BASE_URL || ''}${customer.photoUrl}`} 
+                                src={customer.photoUrl.startsWith('http') || customer.photoUrl.startsWith('blob:') ? customer.photoUrl : `${import.meta.env.VITE_API_BASE_URL || ''}${customer.photoUrl}`} 
                                 alt={customer.fullName} 
                                 className="w-8 h-8 rounded-full object-cover bg-surface-muted" 
                               />

@@ -69,6 +69,7 @@ public class CustomerService {
         }
 
         Customer customer = customerMapper.toEntity(request);
+        customer.setPhotoUrl("https://api.dicebear.com/7.x/avataaars/svg?seed=" + request.getMobileNumber());
         customer.setStatus(CustomerStatus.ACTIVE);
         customer = customerRepository.save(customer);
         return customerMapper.toDto(customer);

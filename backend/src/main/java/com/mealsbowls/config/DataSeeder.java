@@ -93,6 +93,7 @@ public class DataSeeder implements CommandLineRunner {
         customer.setFullName(fullName);
         customer.setMobileNumber(mobile);
         customer.setPassword(encodedPassword);
+        customer.setPhotoUrl("https://api.dicebear.com/7.x/avataaars/svg?seed=" + mobile);
         customer.setStatus(CustomerStatus.ACTIVE);
         customer = customerRepository.save(customer);
 
