@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { reportService } from '@/services/reportService';
 import {
   Users, UserCheck, Sun, Moon, Utensils,
@@ -13,6 +14,7 @@ const CARDS = [
     color: 'text-info',
     bg: 'bg-info/10',
     border: 'border-info/20',
+    path: '/admin/customers',
   },
   {
     key: 'activeCustomers',
@@ -21,6 +23,7 @@ const CARDS = [
     color: 'text-success',
     bg: 'bg-success/10',
     border: 'border-success/20',
+    path: '/admin/customers',
   },
   {
     key: 'lunchServedToday',
@@ -29,6 +32,7 @@ const CARDS = [
     color: 'text-warning',
     bg: 'bg-warning/10',
     border: 'border-warning/20',
+    path: '/admin/meal-history',
   },
   {
     key: 'dinnerServedToday',
@@ -37,6 +41,7 @@ const CARDS = [
     color: 'text-primary',
     bg: 'bg-primary/10',
     border: 'border-primary/20',
+    path: '/admin/meal-history',
   },
   {
     key: 'totalMealsServedToday',
@@ -45,6 +50,7 @@ const CARDS = [
     color: 'text-success',
     bg: 'bg-success/10',
     border: 'border-success/20',
+    path: '/admin/meal-history',
   },
   {
     key: 'plansExpiringSoon',
@@ -54,6 +60,7 @@ const CARDS = [
     color: 'text-warning',
     bg: 'bg-warning/10',
     border: 'border-warning/20',
+    path: '/admin/reports',
   },
   {
     key: 'todaysCollection',
@@ -63,11 +70,13 @@ const CARDS = [
     bg: 'bg-primary/10',
     border: 'border-primary/20',
     isCurrency: true,
+    path: '/admin/payments',
   },
 ];
 
 function StatCard({ card, value, loading }) {
   const Icon = card.icon;
+  const navigate = useNavigate();
 
   const displayValue = loading
     ? '—'
@@ -75,8 +84,17 @@ function StatCard({ card, value, loading }) {
     ? `₹${Number(value ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`
     : (value ?? 0).toLocaleString();
 
+  const handleClick = () => {
+    if (card.path) {
+      navigate(card.path);
+    }
+  };
+
   return (
-    <div className={`bg-surface-card rounded-card p-6 shadow-card border ${card.border} flex flex-col gap-4`}>
+    <div
+      onClick={handleClick}
+      className={`bg-surface-card rounded-card p-6 shadow-card border ${card.border} flex flex-col gap-4 cursor-pointer hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5`}
+    >
       <div className="flex items-center justify-between">
         <p className="text-small font-medium text-text-secondary">{card.label}</p>
         <span className={`p-2.5 rounded-xl ${card.bg}`}>

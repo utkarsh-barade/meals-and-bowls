@@ -9,6 +9,7 @@ import com.mealsbowls.payment.PaymentDTO;
 import com.mealsbowls.payment.PaymentRepository;
 import com.mealsbowls.subscription.Subscription;
 import com.mealsbowls.subscription.SubscriptionRepository;
+import com.mealsbowls.subscription.SubscriptionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,7 +33,7 @@ public class ReportService {
         LocalDate today = LocalDate.now();
 
         long totalCustomers  = customerRepository.count();
-        long activeCustomers = customerRepository.findByStatusOrderByCreatedAtDesc(CustomerStatus.ACTIVE).size();
+        long activeCustomers = subscriptionRepository.findByStatus(SubscriptionStatus.ACTIVE).size();
         long lunchToday      = mealAuditLogRepository.countByMealDateAndMealTypeAndActionServed(today, MealType.LUNCH);
         long dinnerToday     = mealAuditLogRepository.countByMealDateAndMealTypeAndActionServed(today, MealType.DINNER);
         long totalToday      = lunchToday + dinnerToday;
