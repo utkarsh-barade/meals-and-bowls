@@ -1,31 +1,33 @@
 package com.mealsbowls.subscription;
 
-import com.mealsbowls.customer.Customer;
+import com.mealsbowls.subscription.Plan;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Document(collection = "subscriptions")
-@CompoundIndex(name = "customer_status", def = "{'customer.$id': 1, 'status': 1}")
+@CompoundIndex(name = "customer_status", def = "{'customerId': 1, 'status': 1}")
 @Data
 public class Subscription {
 
     @Id
     private Long id;
 
-    @DBRef
-    private Customer customer;
+    // Flat ID reference — no @DBRef, no extra round-trip
+    @Indexed
+    private Long customerId;
 
-    @DBRef
-    private Plan plan;
+    // Embedded plan info — avoids loading Plan document on every read
+    private Long planId;
+    private String planName;
+    private Double planPrice;
 
     private LocalDate startDate;
     private LocalDate expiryDate;

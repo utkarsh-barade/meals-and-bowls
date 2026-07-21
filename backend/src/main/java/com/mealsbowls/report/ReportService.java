@@ -1,12 +1,11 @@
 package com.mealsbowls.report;
 
+import com.mealsbowls.customer.Customer;
 import com.mealsbowls.customer.CustomerRepository;
-import com.mealsbowls.customer.CustomerStatus;
 import com.mealsbowls.meal.MealAction;
 import com.mealsbowls.meal.MealAuditLog;
 import com.mealsbowls.meal.MealAuditLogRepository;
 import com.mealsbowls.meal.MealType;
-import com.mealsbowls.payment.Payment;
 import com.mealsbowls.payment.PaymentDTO;
 import com.mealsbowls.payment.PaymentRepository;
 import com.mealsbowls.payment.PaymentStatus;
@@ -64,16 +63,27 @@ public class ReportService {
     public List<DailyMealReportDTO> getDailyMealReport(LocalDate date) {
         List<MealAuditLog> logs = mealAuditLogRepository.findByMealDateAndAction(date, MealAction.SERVED);
 
+        // Fetch customer details in one query
+        Set<Long> customerIds = logs.stream().map(MealAuditLog::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Customer> customerMap = customerRepository.findAllById(customerIds).stream()
+                .collect(Collectors.toMap(Customer::getId, c -> c));
+
         // Group by customer
         Map<Long, DailyMealReportDTO.DailyMealReportDTOBuilder> byCustomer = new LinkedHashMap<>();
 
         for (MealAuditLog log : logs) {
-            Long cid = log.getCustomer().getId();
+            Long cid = log.getCustomerId();
+            if (cid == null) continue;
+
+            Customer customer = customerMap.get(cid);
+            String name = customer != null ? customer.getFullName() : "Unknown";
+            String mobile = customer != null ? customer.getMobileNumber() : "";
+
             DailyMealReportDTO.DailyMealReportDTOBuilder builder = byCustomer.computeIfAbsent(cid, k ->
                     DailyMealReportDTO.builder()
                             .customerId(cid)
-                            .customerName(log.getCustomer().getFullName())
-                            .customerMobile(log.getCustomer().getMobileNumber())
+                            .customerName(name)
+                            .customerMobile(mobile)
                             .mealDate(date)
                             .lunchServed(false)
                             .dinnerServed(false)
@@ -110,17 +120,26 @@ public class ReportService {
 
     public List<ExpiringPlanDTO> getExpiringPlans(int days) {
         LocalDate today = LocalDate.now();
-        return subscriptionRepository.findExpiringBetween(today, today.plusDays(days)).stream()
-                .map(s -> ExpiringPlanDTO.builder()
-                        .subscriptionId(s.getId())
-                        .customerId(s.getCustomer().getId())
-                        .customerName(s.getCustomer().getFullName())
-                        .customerMobile(s.getCustomer().getMobileNumber())
-                        .planName(s.getPlan().getName())
-                        .expiryDate(s.getExpiryDate())
-                        .daysLeft(ChronoUnit.DAYS.between(today, s.getExpiryDate()))
-                        .mealsRemaining(s.getMealsRemaining())
-                        .build())
+        List<com.mealsbowls.subscription.Subscription> subs = subscriptionRepository.findExpiringBetween(today, today.plusDays(days));
+
+        Set<Long> customerIds = subs.stream().map(com.mealsbowls.subscription.Subscription::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Customer> customerMap = customerRepository.findAllById(customerIds).stream()
+                .collect(Collectors.toMap(Customer::getId, c -> c));
+
+        return subs.stream()
+                .map(s -> {
+                    Customer c = customerMap.get(s.getCustomerId());
+                    return ExpiringPlanDTO.builder()
+                            .subscriptionId(s.getId())
+                            .customerId(s.getCustomerId())
+                            .customerName(c != null ? c.getFullName() : "Unknown")
+                            .customerMobile(c != null ? c.getMobileNumber() : "")
+                            .planName(s.getPlanName())
+                            .expiryDate(s.getExpiryDate())
+                            .daysLeft(ChronoUnit.DAYS.between(today, s.getExpiryDate()))
+                            .mealsRemaining(s.getMealsRemaining())
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 

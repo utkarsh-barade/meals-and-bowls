@@ -34,8 +34,13 @@ public class PaymentService {
 
         Payment payment = new Payment();
         payment.setId(sequenceGeneratorService.generateSequence(Payment.class.getSimpleName()));
-        payment.setCustomer(customer);
-        payment.setSubscription(subscription);
+        payment.setCustomerId(customerId);
+        payment.setCustomerName(customer.getFullName());
+        payment.setCustomerMobile(customer.getMobileNumber());
+        if (subscription != null) {
+            payment.setSubscriptionId(subscription.getId());
+            payment.setPlanName(subscription.getPlanName());
+        }
         payment.setAmount(amount);
         payment.setPaymentDate(date != null ? date : LocalDate.now());
         payment.setStatus(status != null ? status : PaymentStatus.PAID);
@@ -43,12 +48,15 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
-    public Payment createPendingPaymentForSubscription(Subscription subscription) {
+    public Payment createPendingPaymentForSubscription(Subscription subscription, Customer customer) {
         Payment payment = new Payment();
         payment.setId(sequenceGeneratorService.generateSequence(Payment.class.getSimpleName()));
-        payment.setCustomer(subscription.getCustomer());
-        payment.setSubscription(subscription);
-        payment.setAmount(subscription.getPlan().getPrice());
+        payment.setCustomerId(subscription.getCustomerId());
+        payment.setCustomerName(customer.getFullName());
+        payment.setCustomerMobile(customer.getMobileNumber());
+        payment.setSubscriptionId(subscription.getId());
+        payment.setPlanName(subscription.getPlanName());
+        payment.setAmount(subscription.getPlanPrice());
         payment.setPaymentDate(subscription.getStartDate() != null ? subscription.getStartDate() : LocalDate.now());
         payment.setStatus(PaymentStatus.PENDING);
 

@@ -36,17 +36,16 @@ public class MealService {
             customers = customerRepository.findByStatus(com.mealsbowls.customer.CustomerStatus.ACTIVE, pageable).getContent();
         }
 
+        // Single query — no DBRef resolution needed
         List<Subscription> activeSubs = subscriptionRepository.findByStatus(SubscriptionStatus.ACTIVE);
         Map<Long, Subscription> subByCustomer = activeSubs.stream()
-                .filter(s -> s.getCustomer() != null)
-                .collect(Collectors.toMap(s -> s.getCustomer().getId(), s -> s, (s1, s2) -> s1));
+                .collect(Collectors.toMap(Subscription::getCustomerId, s -> s, (s1, s2) -> s1));
 
+        // Single query — no DBRef resolution needed
         List<MealAuditLog> todayLogs = mealAuditLogRepository.findByMealDateAndAction(today, MealAction.SERVED);
         Map<Long, Set<MealType>> servedByCustomer = new HashMap<>();
         for (MealAuditLog log : todayLogs) {
-            if (log.getCustomer() != null) {
-                servedByCustomer.computeIfAbsent(log.getCustomer().getId(), k -> new HashSet<>()).add(log.getMealType());
-            }
+            servedByCustomer.computeIfAbsent(log.getCustomerId(), k -> new HashSet<>()).add(log.getMealType());
         }
 
         return customers.stream().map(c -> {
@@ -63,8 +62,8 @@ public class MealService {
                             .lunchServed(servedTypes.contains(MealType.LUNCH))
                             .dinnerServed(servedTypes.contains(MealType.DINNER));
 
-            if (sub != null && sub.getPlan() != null) {
-                builder.planName(sub.getPlan().getName())
+            if (sub != null) {
+                builder.planName(sub.getPlanName())
                         .mealsRemaining(sub.getMealsRemaining())
                         .mealsTotal(sub.getMealsTotal());
             }
@@ -83,6 +82,7 @@ public class MealService {
     }
 
     public void serveMeal(Long customerId, LocalDate date, MealType type) {
+        // 1 Atlas call — uses compound index on (customerId, status)
         Subscription activeSub = subscriptionRepository.findByCustomerIdAndStatus(customerId, SubscriptionStatus.ACTIVE)
                 .orElseThrow(() -> new AppException("No active subscription found for this customer.", HttpStatus.UNPROCESSABLE_ENTITY));
 
@@ -94,29 +94,32 @@ public class MealService {
             throw new AppException("No meals remaining in the active subscription.", HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
+        // 1 Atlas call — uses compound index on (customerId, mealDate, mealType)
         if (isCurrentlyServed(customerId, date, type)) {
             throw new AppException("Meal has already been served for this date and type.", HttpStatus.CONFLICT);
         }
 
+        // 1 Atlas call — needed only for customer name/mobile for WhatsApp notification
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new AppException("Customer not found.", HttpStatus.NOT_FOUND));
 
+        // 1 Atlas call — sequence generator
         MealAuditLog log = new MealAuditLog();
         log.setId(sequenceGeneratorService.generateSequence(MealAuditLog.class.getSimpleName()));
-        log.setCustomer(customer);
-        log.setSubscription(activeSub);
+        log.setCustomerId(customerId);
+        log.setSubscriptionId(activeSub.getId());
         log.setMealDate(date);
         log.setMealType(type);
         log.setAction(MealAction.SERVED);
-        mealAuditLogRepository.save(log);
+        mealAuditLogRepository.save(log); // 1 Atlas call
 
         activeSub.setMealsConsumed(activeSub.getMealsConsumed() + 1);
         if (activeSub.getMealsConsumed() >= activeSub.getMealsTotal()) {
             activeSub.setStatus(SubscriptionStatus.EXPIRED);
         }
-        subscriptionRepository.save(activeSub);
+        subscriptionRepository.save(activeSub); // 1 Atlas call
 
-        // Send served notification
+        // Fire WhatsApp notification async — zero blocking
         String timeStr = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a"));
         String mealTypeStr = type.toString().substring(0, 1).toUpperCase() + type.toString().substring(1).toLowerCase();
 
@@ -125,7 +128,7 @@ public class MealService {
                      "Your " + mealTypeStr + " has been served successfully.\n\n" +
                      "Date: " + date + "\n" +
                      "Time: " + timeStr + "\n\n" +
-                     "Plan: " + activeSub.getPlan().getName() + "\n" +
+                     "Plan: " + activeSub.getPlanName() + "\n" +
                      "Remaining Meals: " + activeSub.getMealsRemaining() + " / " + activeSub.getMealsTotal() + "\n\n" +
                      "Thank you for choosing Meals & Bowls.";
 
@@ -153,7 +156,8 @@ public class MealService {
                 .orElseGet(() -> {
                     List<MealAuditLog> logs = mealAuditLogRepository.findByCustomerIdAndMealDateAndMealTypeOrderByCreatedAtDesc(customerId, date, type);
                     if (!logs.isEmpty()) {
-                        return logs.get(0).getSubscription();
+                        return subscriptionRepository.findById(logs.get(0).getSubscriptionId())
+                                .orElseThrow(() -> new AppException("Cannot find subscription to correct.", HttpStatus.NOT_FOUND));
                     }
                     throw new AppException("Cannot find subscription to correct.", HttpStatus.NOT_FOUND);
                 });
@@ -163,8 +167,8 @@ public class MealService {
 
         MealAuditLog log = new MealAuditLog();
         log.setId(sequenceGeneratorService.generateSequence(MealAuditLog.class.getSimpleName()));
-        log.setCustomer(customer);
-        log.setSubscription(subToUpdate);
+        log.setCustomerId(customerId);
+        log.setSubscriptionId(subToUpdate.getId());
         log.setMealDate(date);
         log.setMealType(type);
 
@@ -216,7 +220,6 @@ public class MealService {
             history.putIfAbsent(log.getMealDate(), new DailyMealStatus(log.getMealDate(), false, false));
             DailyMealStatus status = history.get(log.getMealDate());
 
-            // Logs are sorted by createdAt DESC — first log per date/type is the latest state
             if (log.getMealType() == MealType.LUNCH && !status.isLunchProcessed()) {
                 status.setLunchServed(log.getAction() == MealAction.SERVED || log.getAction() == MealAction.CORRECTED_SERVED);
                 status.setLunchProcessed(true);

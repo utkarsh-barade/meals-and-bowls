@@ -21,6 +21,7 @@ com\mealsbowls\customer\CustomerStatus.class
 com\mealsbowls\customer\dto\CustomerDto.class
 com\mealsbowls\subscription\SubscriptionStatus.class
 com\mealsbowls\report\ExpiringPlanDTO$ExpiringPlanDTOBuilder.class
+com\mealsbowls\config\DataMigrationRunner.class
 com\mealsbowls\customer\dto\CustomerDto$CustomerDtoBuilder.class
 com\mealsbowls\exception\GlobalExceptionHandler.class
 com\mealsbowls\subscription\SubscriptionRepository.class

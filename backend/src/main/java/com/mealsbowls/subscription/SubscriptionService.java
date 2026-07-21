@@ -7,7 +7,6 @@ import com.mealsbowls.notification.WhatsAppNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -46,8 +45,10 @@ public class SubscriptionService {
 
         Subscription subscription = new Subscription();
         subscription.setId(sequenceGeneratorService.generateSequence(Subscription.class.getSimpleName()));
-        subscription.setCustomer(customer);
-        subscription.setPlan(plan);
+        subscription.setCustomerId(customerId);
+        subscription.setPlanId(planId);
+        subscription.setPlanName(plan.getName());
+        subscription.setPlanPrice(plan.getPrice());
         subscription.setStartDate(LocalDate.now());
         subscription.setExpiryDate(LocalDate.now().plusDays(plan.getValidityDays()));
         subscription.setMealsTotal(plan.getTotalMeals());
@@ -55,7 +56,7 @@ public class SubscriptionService {
         subscription.setStatus(SubscriptionStatus.ACTIVE);
 
         Subscription saved = subscriptionRepository.save(subscription);
-        paymentService.createPendingPaymentForSubscription(saved);
+        paymentService.createPendingPaymentForSubscription(saved, customer);
         
         String msg;
         if (isRenewal) {

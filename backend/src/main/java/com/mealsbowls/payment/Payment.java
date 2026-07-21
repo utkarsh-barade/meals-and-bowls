@@ -1,31 +1,37 @@
 package com.mealsbowls.payment;
 
-import com.mealsbowls.customer.Customer;
-import com.mealsbowls.subscription.Subscription;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Document(collection = "payments")
-@CompoundIndex(name = "customer_payment_date", def = "{'customer.$id': 1, 'paymentDate': -1}")
+@CompoundIndex(name = "customer_payment_date", def = "{'customerId': 1, 'paymentDate': -1}")
 @Data
 public class Payment {
 
     @Id
     private Long id;
 
-    @DBRef
-    private Customer customer;
+    // Flat ID reference — no @DBRef, no extra round-trip
+    @Indexed
+    private Long customerId;
 
-    @DBRef
-    private Subscription subscription;
+    // Embedded customer info needed for display
+    private String customerName;
+    private String customerMobile;
+
+    // Flat subscription ID reference
+    private Long subscriptionId;
+
+    // Embedded plan name for display
+    private String planName;
 
     private Double amount;
 

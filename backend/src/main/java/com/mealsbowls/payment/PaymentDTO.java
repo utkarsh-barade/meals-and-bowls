@@ -20,21 +20,13 @@ public class PaymentDTO {
     private LocalDateTime createdAt;
 
     public static PaymentDTO from(Payment p) {
-        String planName = null;
-        Long subscriptionId = null;
-        if (p.getSubscription() != null) {
-            subscriptionId = p.getSubscription().getId();
-            if (p.getSubscription().getPlan() != null) {
-                planName = p.getSubscription().getPlan().getName();
-            }
-        }
         return PaymentDTO.builder()
                 .id(p.getId())
-                .customerId(p.getCustomer().getId())
-                .customerName(p.getCustomer().getFullName())
-                .customerMobile(p.getCustomer().getMobileNumber())
-                .subscriptionId(subscriptionId)
-                .planName(planName)
+                .customerId(p.getCustomerId())
+                .customerName(p.getCustomerName())
+                .customerMobile(p.getCustomerMobile())
+                .subscriptionId(p.getSubscriptionId())
+                .planName(p.getPlanName())
                 .amount(p.getAmount())
                 .paymentDate(p.getPaymentDate())
                 .status(p.getStatus())

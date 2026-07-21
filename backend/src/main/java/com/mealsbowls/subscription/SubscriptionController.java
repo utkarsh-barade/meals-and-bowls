@@ -54,8 +54,15 @@ public class SubscriptionController {
     private SubscriptionDTO mapToSubscriptionDTO(Subscription sub) {
         SubscriptionDTO dto = new SubscriptionDTO();
         dto.setId(sub.getId());
-        dto.setCustomerId(sub.getCustomer().getId());
-        dto.setPlan(mapToPlanDTO(sub.getPlan()));
+        dto.setCustomerId(sub.getCustomerId());
+
+        PlanDTO planDto = new PlanDTO();
+        planDto.setId(sub.getPlanId());
+        planDto.setName(sub.getPlanName());
+        planDto.setPrice(sub.getPlanPrice());
+        planDto.setTotalMeals(sub.getMealsTotal());
+        dto.setPlan(planDto);
+
         dto.setStartDate(sub.getStartDate());
         dto.setExpiryDate(sub.getExpiryDate());
         dto.setMealsTotal(sub.getMealsTotal());
