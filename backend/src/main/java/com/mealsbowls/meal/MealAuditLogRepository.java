@@ -24,6 +24,9 @@ public interface MealAuditLogRepository extends MongoRepository<MealAuditLog, Lo
     @Query(value = "{ 'customer.$id': ?0, 'action': ?1 }", sort = "{ 'mealDate': -1 }")
     List<MealAuditLog> findByCustomerIdAndActionOrderByMealDateDesc(Long customerId, MealAction action);
 
+    @Query(value = "{ 'customer.$id': ?0 }")
+    List<MealAuditLog> findByCustomerId(Long customerId);
+
     @Query(value = "{ 'customer.$id': ?0 }", delete = true)
     void deleteByCustomerId(Long customerId);
 }

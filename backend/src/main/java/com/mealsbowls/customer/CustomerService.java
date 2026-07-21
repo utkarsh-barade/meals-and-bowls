@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -120,9 +121,17 @@ public class CustomerService {
     }
 
     private void deleteRelatedEntities(Long customerId) {
-        mealAuditLogRepository.deleteByCustomerId(customerId);
-        paymentRepository.deleteByCustomerId(customerId);
-        subscriptionRepository.deleteByCustomerId(customerId);
+        // Fetch and delete all meal logs for this customer
+        List<com.mealsbowls.meal.MealAuditLog> logs = mealAuditLogRepository.findByCustomerId(customerId);
+        mealAuditLogRepository.deleteAll(logs);
+
+        // Fetch and delete all payments for this customer
+        List<com.mealsbowls.payment.Payment> payments = paymentRepository.findByCustomerIdOrderByPaymentDateDesc(customerId);
+        paymentRepository.deleteAll(payments);
+
+        // Fetch and delete all subscriptions for this customer
+        List<com.mealsbowls.subscription.Subscription> subs = subscriptionRepository.findByCustomerId(customerId);
+        subscriptionRepository.deleteAll(subs);
     }
 
     @Transactional
