@@ -13,5 +13,11 @@ export const mealService = {
     return axios.get(`/api/admin/meals/history/${customerId}`, {
       params: { startDate, endDate }
     });
+  },
+
+  getMealManagementList: async (search) => {
+    return axios.get('/api/admin/meals/management-list', {
+      params: { search }
+    });
   }
 };

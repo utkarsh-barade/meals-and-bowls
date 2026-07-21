@@ -30,6 +30,7 @@ E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\exception\AppExcep
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\exception\GlobalExceptionHandler.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\meal\CorrectMealRequest.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\meal\DailyMealStatus.java
+E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\meal\dto\MealManagementCustomerDTO.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\meal\MealAction.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\meal\MealAuditLog.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\meal\MealAuditLogRepository.java

@@ -13,9 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +25,53 @@ public class MealService {
     private final CustomerRepository customerRepository;
     private final WhatsAppNotificationService notificationService;
     private final SequenceGeneratorService sequenceGeneratorService;
+
+    public List<com.mealsbowls.meal.dto.MealManagementCustomerDTO> getMealManagementList(String search) {
+        LocalDate today = LocalDate.now();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 100);
+        List<Customer> customers;
+        if (search != null && !search.trim().isEmpty()) {
+            customers = customerRepository.searchCustomers(search.trim(), pageable).getContent();
+        } else {
+            customers = customerRepository.findByStatus(com.mealsbowls.customer.CustomerStatus.ACTIVE, pageable).getContent();
+        }
+
+        List<Subscription> activeSubs = subscriptionRepository.findByStatus(SubscriptionStatus.ACTIVE);
+        Map<Long, Subscription> subByCustomer = activeSubs.stream()
+                .filter(s -> s.getCustomer() != null)
+                .collect(Collectors.toMap(s -> s.getCustomer().getId(), s -> s, (s1, s2) -> s1));
+
+        List<MealAuditLog> todayLogs = mealAuditLogRepository.findByMealDateAndAction(today, MealAction.SERVED);
+        Map<Long, Set<MealType>> servedByCustomer = new HashMap<>();
+        for (MealAuditLog log : todayLogs) {
+            if (log.getCustomer() != null) {
+                servedByCustomer.computeIfAbsent(log.getCustomer().getId(), k -> new HashSet<>()).add(log.getMealType());
+            }
+        }
+
+        return customers.stream().map(c -> {
+            Subscription sub = subByCustomer.get(c.getId());
+            Set<MealType> servedTypes = servedByCustomer.getOrDefault(c.getId(), Collections.emptySet());
+
+            com.mealsbowls.meal.dto.MealManagementCustomerDTO.MealManagementCustomerDTOBuilder builder =
+                    com.mealsbowls.meal.dto.MealManagementCustomerDTO.builder()
+                            .id(c.getId())
+                            .fullName(c.getFullName())
+                            .mobileNumber(c.getMobileNumber())
+                            .photoUrl(c.getPhotoUrl())
+                            .hasActiveSubscription(sub != null)
+                            .lunchServed(servedTypes.contains(MealType.LUNCH))
+                            .dinnerServed(servedTypes.contains(MealType.DINNER));
+
+            if (sub != null && sub.getPlan() != null) {
+                builder.planName(sub.getPlan().getName())
+                        .mealsRemaining(sub.getMealsRemaining())
+                        .mealsTotal(sub.getMealsTotal());
+            }
+
+            return builder.build();
+        }).collect(Collectors.toList());
+    }
 
     private boolean isCurrentlyServed(Long customerId, LocalDate date, MealType type) {
         List<MealAuditLog> logs = mealAuditLogRepository.findByCustomerIdAndMealDateAndMealTypeOrderByCreatedAtDesc(customerId, date, type);

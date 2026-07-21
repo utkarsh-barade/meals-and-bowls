@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { customerService } from '@/services/customerService';
 import { mealService } from '@/services/mealService';
-import { subscriptionService } from '@/services/subscriptionService';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -12,26 +10,10 @@ function CustomerMealRow({ customer }) {
   const queryClient = useQueryClient();
   const today = new Date().toLocaleDateString('en-CA');
 
-  const { data: subResponse } = useQuery({
-    queryKey: ['customer-subscription', customer.id],
-    queryFn: () => subscriptionService.getActiveSubscription(customer.id),
-  });
-
-  const subscription = subResponse?.data?.data;
-
-  const { data: historyResponse } = useQuery({
-    queryKey: ['meal-history', customer.id, today],
-    queryFn: () => mealService.getMealHistory(customer.id, today, today),
-    enabled: !!subscription
-  });
-
-  const todayStatus = historyResponse?.data?.data?.[today] || { lunchServed: false, dinnerServed: false };
-
   const { mutate: serveMeal, isPending } = useMutation({
     mutationFn: (type) => mealService.serveMeal(customer.id, today, type),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customer-subscription', customer.id] });
-      queryClient.invalidateQueries({ queryKey: ['meal-history', customer.id, today] });
+      queryClient.invalidateQueries({ queryKey: ['meal-management-list'] });
     },
     onError: (error) => {
       alert(error.response?.data?.message || 'Failed to serve meal');
@@ -54,33 +36,33 @@ function CustomerMealRow({ customer }) {
         </div>
       </div>
 
-      {!subscription ? (
+      {!customer.hasActiveSubscription ? (
         <span className="text-small text-danger bg-danger/10 px-3 py-1 rounded-full font-medium">No Active Plan</span>
-      ) : subscription.mealsRemaining <= 0 ? (
+      ) : customer.mealsRemaining <= 0 ? (
         <span className="text-small text-danger bg-danger/10 px-3 py-1 rounded-full font-medium">0 Meals Left</span>
       ) : (
         <div className="flex items-center gap-4">
           <div className="text-right mr-4">
-            <p className="text-small font-medium text-text-primary">{subscription.plan.name}</p>
-            <p className="text-caption text-text-secondary">{subscription.mealsRemaining} meals left</p>
+            <p className="text-small font-medium text-text-primary">{customer.planName}</p>
+            <p className="text-caption text-text-secondary">{customer.mealsRemaining} meals left</p>
           </div>
           
           <Button 
-            variant={todayStatus.lunchServed ? "secondary" : "primary"}
-            disabled={isPending || todayStatus.lunchServed}
+            variant={customer.lunchServed ? "secondary" : "primary"}
+            disabled={isPending || customer.lunchServed}
             onClick={() => serveMeal('LUNCH')}
             className="w-32"
           >
-            {todayStatus.lunchServed ? <><CheckCircle className="w-4 h-4 mr-2"/> Lunch Served</> : <><Utensils className="w-4 h-4 mr-2"/> Serve Lunch</>}
+            {customer.lunchServed ? <><CheckCircle className="w-4 h-4 mr-2"/> Lunch Served</> : <><Utensils className="w-4 h-4 mr-2"/> Serve Lunch</>}
           </Button>
 
           <Button 
-            variant={todayStatus.dinnerServed ? "secondary" : "primary"}
-            disabled={isPending || todayStatus.dinnerServed}
+            variant={customer.dinnerServed ? "secondary" : "primary"}
+            disabled={isPending || customer.dinnerServed}
             onClick={() => serveMeal('DINNER')}
             className="w-32"
           >
-             {todayStatus.dinnerServed ? <><CheckCircle className="w-4 h-4 mr-2"/> Dinner Served</> : <><Utensils className="w-4 h-4 mr-2"/> Serve Dinner</>}
+             {customer.dinnerServed ? <><CheckCircle className="w-4 h-4 mr-2"/> Dinner Served</> : <><Utensils className="w-4 h-4 mr-2"/> Serve Dinner</>}
           </Button>
         </div>
       )}
@@ -92,11 +74,11 @@ export default function MealManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const { data: response, isLoading } = useQuery({
-    queryKey: ['customers', searchTerm, 0],
-    queryFn: () => customerService.getCustomers(searchTerm, 0, 50),
+    queryKey: ['meal-management-list', searchTerm],
+    queryFn: () => mealService.getMealManagementList(searchTerm),
   });
 
-  const customers = response?.data?.content || [];
+  const customers = response?.data?.data || [];
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

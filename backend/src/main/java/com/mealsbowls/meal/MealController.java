@@ -43,4 +43,12 @@ public class MealController {
         Map<LocalDate, DailyMealStatus> history = mealService.getMealHistory(customerId, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success("Meal history fetched", history));
     }
+
+    /** GET /api/admin/meals/management-list?search= */
+    @GetMapping("/management-list")
+    public ResponseEntity<ApiResponse<java.util.List<com.mealsbowls.meal.dto.MealManagementCustomerDTO>>> getManagementList(
+            @RequestParam(required = false) String search) {
+        java.util.List<com.mealsbowls.meal.dto.MealManagementCustomerDTO> list = mealService.getMealManagementList(search);
+        return ResponseEntity.ok(ApiResponse.success("Meal management list fetched", list));
+    }
 }

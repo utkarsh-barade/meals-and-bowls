@@ -24,6 +24,7 @@ com\mealsbowls\report\ExpiringPlanDTO$ExpiringPlanDTOBuilder.class
 com\mealsbowls\customer\dto\CustomerDto$CustomerDtoBuilder.class
 com\mealsbowls\exception\GlobalExceptionHandler.class
 com\mealsbowls\subscription\SubscriptionRepository.class
+com\mealsbowls\meal\dto\MealManagementCustomerDTO.class
 com\mealsbowls\config\CorsConfig.class
 com\mealsbowls\customer\CustomerController.class
 com\mealsbowls\plan\package-info.class
@@ -65,6 +66,7 @@ com\mealsbowls\config\SecurityConfig.class
 com\mealsbowls\report\ExpiringPlanDTO.class
 com\mealsbowls\subscription\SubscriptionDTO.class
 com\mealsbowls\auth\dto\AuthResponse.class
+com\mealsbowls\meal\dto\MealManagementCustomerDTO$MealManagementCustomerDTOBuilder.class
 com\mealsbowls\report\package-info.class
 com\mealsbowls\subscription\SubscriptionExpiryTask.class
 com\mealsbowls\common\ApiResponse$ApiResponseBuilder.class
