@@ -7,6 +7,13 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Search, Calendar, ChevronLeft, ChevronRight, Utensils, CheckCircle, XCircle, Users } from 'lucide-react';
 
+function formatDateLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getDaysInMonth(year, month) {
   const date = new Date(year, month, 1);
   const days = [];
@@ -35,9 +42,9 @@ export default function MealHistory() {
 
   const customers = customerResponse?.data?.content || [];
 
-  // Start and end date for the selected month
-  const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+  // Start and end date for the selected month (using local date formatting)
+  const startDate = formatDateLocal(new Date(year, month, 1));
+  const endDate = formatDateLocal(new Date(year, month + 1, 0));
 
   // Fetch meal history
   const { data: historyResponse, isLoading: isLoadingHistory } = useQuery({
@@ -154,7 +161,7 @@ export default function MealHistory() {
                   </thead>
                   <tbody className="text-small text-text-primary divide-y divide-surface-border">
                     {daysInMonth.map(date => {
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = formatDateLocal(date);
                       const status = history[dateStr] || { lunchServed: false, dinnerServed: false };
                       const isFuture = date > new Date();
 
