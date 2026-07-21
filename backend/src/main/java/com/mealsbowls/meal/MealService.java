@@ -158,7 +158,12 @@ public class MealService {
     }
 
     public Map<LocalDate, DailyMealStatus> getMealHistory(Long customerId, LocalDate startDate, LocalDate endDate) {
-        List<MealAuditLog> logs = mealAuditLogRepository.findByCustomerIdAndMealDateBetweenOrderByMealDateDesc(customerId, startDate, endDate);
+        List<MealAuditLog> logs;
+        if (startDate.equals(endDate)) {
+            logs = mealAuditLogRepository.findByCustomerIdAndMealDateOrderByCreatedAtDesc(customerId, startDate);
+        } else {
+            logs = mealAuditLogRepository.findByCustomerIdAndMealDateBetweenOrderByMealDateDesc(customerId, startDate, endDate);
+        }
         Map<LocalDate, DailyMealStatus> history = new HashMap<>();
 
         for (MealAuditLog log : logs) {

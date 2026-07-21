@@ -9,6 +9,8 @@ public interface MealAuditLogRepository extends MongoRepository<MealAuditLog, Lo
 
     List<MealAuditLog> findByCustomerIdAndMealDateAndMealTypeOrderByCreatedAtDesc(Long customerId, LocalDate mealDate, MealType mealType);
 
+    List<MealAuditLog> findByCustomerIdAndMealDateOrderByCreatedAtDesc(Long customerId, LocalDate mealDate);
+
     List<MealAuditLog> findByCustomerIdAndMealDateBetweenOrderByMealDateDesc(Long customerId, LocalDate startDate, LocalDate endDate);
 
     long countByMealDateAndMealTypeAndAction(LocalDate mealDate, MealType mealType, MealAction action);
