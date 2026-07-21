@@ -121,17 +121,10 @@ public class CustomerService {
     }
 
     private void deleteRelatedEntities(Long customerId) {
-        // Fetch and delete all meal logs for this customer
-        List<com.mealsbowls.meal.MealAuditLog> logs = mealAuditLogRepository.findByCustomerId(customerId);
-        mealAuditLogRepository.deleteAll(logs);
-
-        // Fetch and delete all payments for this customer
-        List<com.mealsbowls.payment.Payment> payments = paymentRepository.findByCustomerIdOrderByPaymentDateDesc(customerId);
-        paymentRepository.deleteAll(payments);
-
-        // Fetch and delete all subscriptions for this customer
-        List<com.mealsbowls.subscription.Subscription> subs = subscriptionRepository.findByCustomerId(customerId);
-        subscriptionRepository.deleteAll(subs);
+        // Bulk deletion in MongoDB via single deleteMany queries (sub-millisecond)
+        mealAuditLogRepository.deleteByCustomerId(customerId);
+        paymentRepository.deleteByCustomerId(customerId);
+        subscriptionRepository.deleteByCustomerId(customerId);
     }
 
     @Transactional
