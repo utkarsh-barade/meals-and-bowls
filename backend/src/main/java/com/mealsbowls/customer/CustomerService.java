@@ -33,10 +33,10 @@ public class CustomerService {
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentRepository paymentRepository;
     private final MealAuditLogRepository mealAuditLogRepository;
+    private final com.mealsbowls.common.SequenceGeneratorService sequenceGeneratorService;
 
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
 
-    @Transactional(readOnly = true)
     public Page<CustomerDto> getCustomers(String search, Pageable pageable) {
         Page<Customer> customers;
         if (search != null && !search.trim().isEmpty()) {
@@ -47,7 +47,6 @@ public class CustomerService {
         return customers.map(customerMapper::toDto);
     }
     
-    @Transactional(readOnly = true)
     public java.util.List<CustomerDto> getPendingCustomers() {
         return customerRepository.findByStatusOrderByCreatedAtDesc(CustomerStatus.PENDING)
                 .stream()
@@ -55,20 +54,19 @@ public class CustomerService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
     public CustomerDto getCustomerById(Long id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
         return customerMapper.toDto(customer);
     }
 
-    @Transactional
     public CustomerDto createCustomer(CreateCustomerRequest request) {
         if (customerRepository.existsByMobileNumber(request.getMobileNumber())) {
             throw new AppException("Mobile number already exists", HttpStatus.BAD_REQUEST);
         }
 
         Customer customer = customerMapper.toEntity(request);
+        customer.setId(sequenceGeneratorService.generateSequence(Customer.class.getSimpleName()));
         customer.setPhotoUrl("https://api.dicebear.com/7.x/avataaars/svg?seed=" + request.getMobileNumber());
         customer.setStatus(CustomerStatus.ACTIVE);
         customer = customerRepository.save(customer);

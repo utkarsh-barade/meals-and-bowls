@@ -1,26 +1,27 @@
 package com.mealsbowls.subscription;
 
 import com.mealsbowls.customer.Customer;
-import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "subscriptions")
+@Document(collection = "subscriptions")
 @Data
 public class Subscription {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @DBRef
     private Customer customer;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plan_id", nullable = false)
+    @DBRef
     private Plan plan;
 
     private LocalDate startDate;
@@ -29,22 +30,13 @@ public class Subscription {
     private int mealsTotal;
     private int mealsConsumed;
 
-    @Enumerated(EnumType.STRING)
     private SubscriptionStatus status;
 
+    @CreatedDate
     private LocalDateTime createdAt;
+
+    @LastModifiedDate
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 
     public int getMealsRemaining() {
         return Math.max(0, mealsTotal - mealsConsumed);

@@ -1,14 +1,15 @@
 package com.mealsbowls.customer;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "customers")
+@Document(collection = "customers")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,30 +18,23 @@ import java.time.LocalDateTime;
 public class Customer {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
     private String fullName;
 
-    @Column(nullable = false, length = 15, unique = true)
+    @Indexed(unique = true)
     private String mobileNumber;
 
-    @Column(length = 255)
     private String password;
 
-    @Column(length = 255)
     private String photoUrl;
     
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     @Builder.Default
     private CustomerStatus status = CustomerStatus.ACTIVE;
 
-    @CreationTimestamp
-    @Column(updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 }

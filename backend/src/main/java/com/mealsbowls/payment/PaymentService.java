@@ -1,5 +1,6 @@
 package com.mealsbowls.payment;
 
+import com.mealsbowls.common.SequenceGeneratorService;
 import com.mealsbowls.customer.Customer;
 import com.mealsbowls.customer.CustomerRepository;
 import com.mealsbowls.exception.AppException;
@@ -8,7 +9,6 @@ import com.mealsbowls.subscription.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,8 +20,8 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final CustomerRepository customerRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
-    @Transactional
     public Payment recordPayment(Long customerId, Long subscriptionId, Double amount, LocalDate date, PaymentStatus status) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
@@ -33,6 +33,7 @@ public class PaymentService {
         }
 
         Payment payment = new Payment();
+        payment.setId(sequenceGeneratorService.generateSequence(Payment.class.getSimpleName()));
         payment.setCustomer(customer);
         payment.setSubscription(subscription);
         payment.setAmount(amount);
@@ -42,9 +43,9 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
-    @Transactional
     public Payment createPendingPaymentForSubscription(Subscription subscription) {
         Payment payment = new Payment();
+        payment.setId(sequenceGeneratorService.generateSequence(Payment.class.getSimpleName()));
         payment.setCustomer(subscription.getCustomer());
         payment.setSubscription(subscription);
         payment.setAmount(subscription.getPlan().getPrice());
@@ -54,7 +55,6 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
-    @Transactional
     public Payment updatePaymentStatus(Long paymentId, PaymentStatus status) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new AppException("Payment not found", HttpStatus.NOT_FOUND));
@@ -67,10 +67,10 @@ public class PaymentService {
     }
 
     public List<Payment> getAllPayments() {
-        return paymentRepository.findAllWithDetails();
+        return paymentRepository.findAllByOrderByPaymentDateDesc();
     }
 
     public List<Payment> getPendingPayments() {
-        return paymentRepository.findPendingWithDetails();
+        return paymentRepository.findByStatusOrderByPaymentDateDesc(PaymentStatus.PENDING);
     }
 }

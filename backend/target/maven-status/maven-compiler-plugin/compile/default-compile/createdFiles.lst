@@ -33,6 +33,7 @@ com\mealsbowls\subscription\Plan.class
 com\mealsbowls\config\WebConfig.class
 com\mealsbowls\notification\WhatsAppNotificationService.class
 com\mealsbowls\auth\JwtAuthFilter.class
+com\mealsbowls\common\SequenceGeneratorService$DatabaseSequence.class
 com\mealsbowls\subscription\PlanRepository.class
 com\mealsbowls\customer\dto\CustomerProfileDTO$CustomerProfileDTOBuilder.class
 com\mealsbowls\subscription\PlanDTO.class
@@ -81,3 +82,4 @@ com\mealsbowls\meal\MealType.class
 com\mealsbowls\MealsBowlsApplication.class
 com\mealsbowls\report\CustomerMealReportDTO$CustomerMealReportDTOBuilder.class
 com\mealsbowls\auth\JwtService.class
+com\mealsbowls\common\SequenceGeneratorService.class

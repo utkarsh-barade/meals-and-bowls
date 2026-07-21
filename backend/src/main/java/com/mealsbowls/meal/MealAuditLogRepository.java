@@ -1,30 +1,21 @@
 package com.mealsbowls.meal;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.time.LocalDate;
 import java.util.List;
 
-public interface MealAuditLogRepository extends JpaRepository<MealAuditLog, Long> {
+public interface MealAuditLogRepository extends MongoRepository<MealAuditLog, Long> {
 
-    @Query("SELECT m FROM MealAuditLog m WHERE m.customer.id = :customerId AND m.mealDate = :date AND m.mealType = :type ORDER BY m.createdAt DESC")
-    List<MealAuditLog> findLogsByCustomerAndDateAndType(@Param("customerId") Long customerId, @Param("date") LocalDate date, @Param("type") MealType type);
+    List<MealAuditLog> findByCustomerIdAndMealDateAndMealTypeOrderByCreatedAtDesc(Long customerId, LocalDate mealDate, MealType mealType);
 
-    @Query("SELECT m FROM MealAuditLog m WHERE m.customer.id = :customerId AND m.mealDate BETWEEN :startDate AND :endDate ORDER BY m.mealDate DESC, m.createdAt DESC")
-    List<MealAuditLog> findLogsForMonth(@Param("customerId") Long customerId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    List<MealAuditLog> findByCustomerIdAndMealDateBetweenOrderByMealDateDesc(Long customerId, LocalDate startDate, LocalDate endDate);
 
-    // Count by date and meal type — used for dashboard today stats
-    @Query("SELECT COUNT(m) FROM MealAuditLog m WHERE m.mealDate = :date AND m.mealType = :type AND m.action = 'SERVED'")
-    long countByMealDateAndMealTypeAndActionServed(@Param("date") LocalDate date, @Param("type") MealType type);
+    long countByMealDateAndMealTypeAndAction(LocalDate mealDate, MealType mealType, MealAction action);
 
-    // All SERVED logs for a given date — daily meal report
-    @Query("SELECT m FROM MealAuditLog m JOIN FETCH m.customer WHERE m.mealDate = :date AND m.action = 'SERVED' ORDER BY m.customer.fullName, m.mealType")
-    List<MealAuditLog> findServedByDate(@Param("date") LocalDate date);
+    List<MealAuditLog> findByMealDateAndAction(LocalDate mealDate, MealAction action);
 
-    // All SERVED logs for a customer — customer meal report
-    @Query("SELECT m FROM MealAuditLog m WHERE m.customer.id = :customerId AND m.action = 'SERVED' ORDER BY m.mealDate DESC, m.mealType")
-    List<MealAuditLog> findServedByCustomerId(@Param("customerId") Long customerId);
+    List<MealAuditLog> findByCustomerIdAndActionOrderByMealDateDesc(Long customerId, MealAction action);
+
     void deleteByCustomerId(Long customerId);
 }

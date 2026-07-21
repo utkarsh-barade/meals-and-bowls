@@ -7,6 +7,7 @@ E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\auth\JwtAuthFilter
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\auth\JwtService.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\common\ApiResponse.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\common\Role.java
+E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\common\SequenceGeneratorService.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\CorsConfig.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\DataSeeder.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\JwtConfig.java

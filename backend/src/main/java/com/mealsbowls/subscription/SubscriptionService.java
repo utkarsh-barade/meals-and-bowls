@@ -21,12 +21,12 @@ public class SubscriptionService {
     private final CustomerRepository customerRepository;
     private final com.mealsbowls.payment.PaymentService paymentService;
     private final WhatsAppNotificationService notificationService;
+    private final com.mealsbowls.common.SequenceGeneratorService sequenceGeneratorService;
 
     public List<Plan> getAllPlans() {
         return planRepository.findAll();
     }
 
-    @Transactional
     public Subscription assignPlan(Long customerId, Long planId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
@@ -45,6 +45,7 @@ public class SubscriptionService {
         boolean isRenewal = !existingSubs.isEmpty();
 
         Subscription subscription = new Subscription();
+        subscription.setId(sequenceGeneratorService.generateSequence(Subscription.class.getSimpleName()));
         subscription.setCustomer(customer);
         subscription.setPlan(plan);
         subscription.setStartDate(LocalDate.now());

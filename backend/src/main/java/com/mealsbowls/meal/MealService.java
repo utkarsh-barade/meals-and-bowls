@@ -1,5 +1,6 @@
 package com.mealsbowls.meal;
 
+import com.mealsbowls.common.SequenceGeneratorService;
 import com.mealsbowls.customer.Customer;
 import com.mealsbowls.customer.CustomerRepository;
 import com.mealsbowls.exception.AppException;
@@ -10,7 +11,6 @@ import com.mealsbowls.subscription.SubscriptionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -25,9 +25,10 @@ public class MealService {
     private final SubscriptionRepository subscriptionRepository;
     private final CustomerRepository customerRepository;
     private final WhatsAppNotificationService notificationService;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
     private boolean isCurrentlyServed(Long customerId, LocalDate date, MealType type) {
-        List<MealAuditLog> logs = mealAuditLogRepository.findLogsByCustomerAndDateAndType(customerId, date, type);
+        List<MealAuditLog> logs = mealAuditLogRepository.findByCustomerIdAndMealDateAndMealTypeOrderByCreatedAtDesc(customerId, date, type);
         if (logs.isEmpty()) {
             return false;
         }
@@ -35,7 +36,6 @@ public class MealService {
         return latestAction == MealAction.SERVED || latestAction == MealAction.CORRECTED_SERVED;
     }
 
-    @Transactional
     public void serveMeal(Long customerId, LocalDate date, MealType type) {
         Subscription activeSub = subscriptionRepository.findByCustomerIdAndStatus(customerId, SubscriptionStatus.ACTIVE)
                 .orElseThrow(() -> new AppException("No active subscription found for this customer.", HttpStatus.UNPROCESSABLE_ENTITY));
@@ -56,6 +56,7 @@ public class MealService {
                 .orElseThrow(() -> new AppException("Customer not found.", HttpStatus.NOT_FOUND));
 
         MealAuditLog log = new MealAuditLog();
+        log.setId(sequenceGeneratorService.generateSequence(MealAuditLog.class.getSimpleName()));
         log.setCustomer(customer);
         log.setSubscription(activeSub);
         log.setMealDate(date);
@@ -73,7 +74,7 @@ public class MealService {
         String timeStr = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a"));
         String mealTypeStr = type.toString().substring(0, 1).toUpperCase() + type.toString().substring(1).toLowerCase();
 
-        String msg = "\uD83C\uDF7D\uFE0F Meals & Bowls\n\n" +
+        String msg = "🍽️ Meals & Bowls\n\n" +
                      "Hello " + customer.getFullName() + ",\n\n" +
                      "Your " + mealTypeStr + " has been served successfully.\n\n" +
                      "Date: " + date + "\n" +
@@ -86,7 +87,7 @@ public class MealService {
 
         // Low balance alert — <= 3 meals remaining
         if (activeSub.getMealsRemaining() <= 3 && activeSub.getMealsRemaining() > 0) {
-            String lowBalanceMsg = "\u26A0\uFE0F Meals & Bowls\n\n" +
+            String lowBalanceMsg = "⚠️ Meals & Bowls\n\n" +
                                    "Hello " + customer.getFullName() + ",\n\n" +
                                    "You have only " + activeSub.getMealsRemaining() + " meals remaining.\n\n" +
                                    "Please renew your subscription before your meals are exhausted.\n\n" +
@@ -95,7 +96,6 @@ public class MealService {
         }
     }
 
-    @Transactional
     public void correctMeal(Long customerId, LocalDate date, MealType type, boolean markAsServed) {
         boolean currentlyServed = isCurrentlyServed(customerId, date, type);
 
@@ -105,7 +105,7 @@ public class MealService {
 
         Subscription subToUpdate = subscriptionRepository.findByCustomerIdAndStatus(customerId, SubscriptionStatus.ACTIVE)
                 .orElseGet(() -> {
-                    List<MealAuditLog> logs = mealAuditLogRepository.findLogsByCustomerAndDateAndType(customerId, date, type);
+                    List<MealAuditLog> logs = mealAuditLogRepository.findByCustomerIdAndMealDateAndMealTypeOrderByCreatedAtDesc(customerId, date, type);
                     if (!logs.isEmpty()) {
                         return logs.get(0).getSubscription();
                     }
@@ -116,6 +116,7 @@ public class MealService {
                 .orElseThrow(() -> new AppException("Customer not found.", HttpStatus.NOT_FOUND));
 
         MealAuditLog log = new MealAuditLog();
+        log.setId(sequenceGeneratorService.generateSequence(MealAuditLog.class.getSimpleName()));
         log.setCustomer(customer);
         log.setSubscription(subToUpdate);
         log.setMealDate(date);
@@ -144,7 +145,7 @@ public class MealService {
         mealAuditLogRepository.save(log);
 
         String mealTypeStr = type.toString().substring(0, 1).toUpperCase() + type.toString().substring(1).toLowerCase();
-        String correctionMsg = "\uD83C\uDF7D\uFE0F Meals & Bowls\n\n" +
+        String correctionMsg = "🍽️ Meals & Bowls\n\n" +
                      "Hello " + customer.getFullName() + ",\n\n" +
                      "Your meal record has been updated by the administrator.\n\n" +
                      "Meal: " + mealTypeStr + "\n" +
@@ -157,7 +158,7 @@ public class MealService {
     }
 
     public Map<LocalDate, DailyMealStatus> getMealHistory(Long customerId, LocalDate startDate, LocalDate endDate) {
-        List<MealAuditLog> logs = mealAuditLogRepository.findLogsForMonth(customerId, startDate, endDate);
+        List<MealAuditLog> logs = mealAuditLogRepository.findByCustomerIdAndMealDateBetweenOrderByMealDateDesc(customerId, startDate, endDate);
         Map<LocalDate, DailyMealStatus> history = new HashMap<>();
 
         for (MealAuditLog log : logs) {

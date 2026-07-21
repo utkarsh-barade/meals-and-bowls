@@ -2,12 +2,14 @@ package com.mealsbowls.report;
 
 import com.mealsbowls.customer.CustomerRepository;
 import com.mealsbowls.customer.CustomerStatus;
+import com.mealsbowls.meal.MealAction;
 import com.mealsbowls.meal.MealAuditLog;
 import com.mealsbowls.meal.MealAuditLogRepository;
 import com.mealsbowls.meal.MealType;
+import com.mealsbowls.payment.Payment;
 import com.mealsbowls.payment.PaymentDTO;
 import com.mealsbowls.payment.PaymentRepository;
-import com.mealsbowls.subscription.Subscription;
+import com.mealsbowls.payment.PaymentStatus;
 import com.mealsbowls.subscription.SubscriptionRepository;
 import com.mealsbowls.subscription.SubscriptionStatus;
 import lombok.RequiredArgsConstructor;
@@ -34,15 +36,17 @@ public class ReportService {
 
         long totalCustomers  = customerRepository.count();
         long activeCustomers = subscriptionRepository.findByStatus(SubscriptionStatus.ACTIVE).size();
-        long lunchToday      = mealAuditLogRepository.countByMealDateAndMealTypeAndActionServed(today, MealType.LUNCH);
-        long dinnerToday     = mealAuditLogRepository.countByMealDateAndMealTypeAndActionServed(today, MealType.DINNER);
+        long lunchToday      = mealAuditLogRepository.countByMealDateAndMealTypeAndAction(today, MealType.LUNCH, MealAction.SERVED);
+        long dinnerToday     = mealAuditLogRepository.countByMealDateAndMealTypeAndAction(today, MealType.DINNER, MealAction.SERVED);
         long totalToday      = lunchToday + dinnerToday;
 
         long expiringSoon = subscriptionRepository
                 .findExpiringBetween(today, today.plusDays(7)).size();
 
-        Double collection = paymentRepository.sumPaidAmountByDate(today);
-        double todaysCollection = (collection != null) ? collection : 0.0;
+        double todaysCollection = paymentRepository.findByStatusAndPaymentDate(PaymentStatus.PAID, today)
+                .stream()
+                .mapToDouble(p -> p.getAmount() != null ? p.getAmount() : 0.0)
+                .sum();
 
         return DashboardStatsDTO.builder()
                 .totalCustomers(totalCustomers)
@@ -58,7 +62,7 @@ public class ReportService {
     // --- Daily Meal Report ---------------------------------------------------
 
     public List<DailyMealReportDTO> getDailyMealReport(LocalDate date) {
-        List<MealAuditLog> logs = mealAuditLogRepository.findServedByDate(date);
+        List<MealAuditLog> logs = mealAuditLogRepository.findByMealDateAndAction(date, MealAction.SERVED);
 
         // Group by customer
         Map<Long, DailyMealReportDTO.DailyMealReportDTOBuilder> byCustomer = new LinkedHashMap<>();
@@ -91,7 +95,7 @@ public class ReportService {
     // --- Customer Meal Report ------------------------------------------------
 
     public List<CustomerMealReportDTO> getCustomerMealReport(Long customerId) {
-        return mealAuditLogRepository.findServedByCustomerId(customerId).stream()
+        return mealAuditLogRepository.findByCustomerIdAndActionOrderByMealDateDesc(customerId, MealAction.SERVED).stream()
                 .map(log -> CustomerMealReportDTO.builder()
                         .logId(log.getId())
                         .mealDate(log.getMealDate())
@@ -123,7 +127,7 @@ public class ReportService {
     // --- Pending Payments ----------------------------------------------------
 
     public List<PaymentDTO> getPendingPayments() {
-        return paymentRepository.findPendingWithDetails().stream()
+        return paymentRepository.findByStatusOrderByPaymentDateDesc(PaymentStatus.PENDING).stream()
                 .map(PaymentDTO::from)
                 .collect(Collectors.toList());
     }

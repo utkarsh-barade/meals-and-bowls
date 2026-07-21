@@ -22,6 +22,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final com.mealsbowls.customer.CustomerRepository customerRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final com.mealsbowls.common.SequenceGeneratorService sequenceGeneratorService;
 
     @Value("${app.admin.mobile}")
     private String adminMobile;
@@ -83,6 +84,7 @@ public class AuthService {
         }
         
         Customer customer = Customer.builder()
+                .id(sequenceGeneratorService.generateSequence(Customer.class.getSimpleName()))
                 .fullName(request.getFullName())
                 .mobileNumber(request.getMobile())
                 .password(passwordEncoder.encode(request.getPassword()))
