@@ -7,6 +7,7 @@ import { ArrowLeft, User, Phone, Calendar, CreditCard, Activity } from 'lucide-r
 import Button from '@/components/ui/Button';
 import { subscriptionService } from '@/services/subscriptionService';
 import AssignPlanModal from './AssignPlanModal';
+import { formatDate } from '@/utils/dateUtils';
 
 export default function ViewCustomer() {
   const { id } = useParams();
@@ -87,7 +88,7 @@ export default function ViewCustomer() {
               <Calendar className="w-5 h-5 text-text-placeholder mt-0.5" />
               <div>
                 <p className="text-small text-text-secondary">Joined On</p>
-                <p className="font-medium">{new Date(customer.createdAt).toLocaleDateString()}</p>
+                <p className="font-medium">{formatDate(customer.createdAt)}</p>
               </div>
             </div>
           </Card.Body>
@@ -125,8 +126,8 @@ export default function ViewCustomer() {
                 <div className="flex items-center gap-3 mt-4">
                   <Calendar className="w-5 h-5 text-text-placeholder" />
                   <div className="flex-1 flex justify-between text-small">
-                    <span className="text-text-secondary">Start: <strong className="text-text-primary font-medium">{new Date(subscription.startDate).toLocaleDateString()}</strong></span>
-                    <span className="text-text-secondary">Expires: <strong className="text-text-primary font-medium">{new Date(subscription.expiryDate).toLocaleDateString()}</strong></span>
+                    <span className="text-text-secondary">Start: <strong className="text-text-primary font-medium">{formatDate(subscription.startDate)}</strong></span>
+                    <span className="text-text-secondary">Expires: <strong className="text-text-primary font-medium">{formatDate(subscription.expiryDate)}</strong></span>
                   </div>
                 </div>
               </div>

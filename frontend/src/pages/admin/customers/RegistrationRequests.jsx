@@ -5,6 +5,8 @@ import Button from '@/components/ui/Button';
 import { UserCheck, UserX, Clock, Phone, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+import { formatDate } from '@/utils/dateUtils';
+
 export default function RegistrationRequests() {
   const queryClient = useQueryClient();
 
@@ -103,7 +105,7 @@ export default function RegistrationRequests() {
                         </div>
                       </td>
                       <td className="p-4 text-text-secondary">
-                        {new Date(req.createdAt).toLocaleDateString()}
+                        {formatDate(req.createdAt)}
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2">

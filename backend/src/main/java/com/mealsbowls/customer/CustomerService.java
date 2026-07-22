@@ -57,14 +57,24 @@ public class CustomerService {
     public java.util.List<CustomerDto> getPendingCustomers() {
         return customerRepository.findByStatusOrderByCreatedAtDesc(CustomerStatus.PENDING)
                 .stream()
-                .map(customerMapper::toDto)
+                .map(c -> {
+                    CustomerDto dto = customerMapper.toDto(c);
+                    if (dto.getCreatedAt() == null) {
+                        dto.setCreatedAt(c.getUpdatedAt() != null ? c.getUpdatedAt() : java.time.LocalDateTime.now());
+                    }
+                    return dto;
+                })
                 .collect(java.util.stream.Collectors.toList());
     }
 
     public CustomerDto getCustomerById(Long id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
-        return customerMapper.toDto(customer);
+        CustomerDto dto = customerMapper.toDto(customer);
+        if (dto.getCreatedAt() == null) {
+            dto.setCreatedAt(customer.getUpdatedAt() != null ? customer.getUpdatedAt() : java.time.LocalDateTime.now());
+        }
+        return dto;
     }
 
     public CustomerDto createCustomer(CreateCustomerRequest request) {

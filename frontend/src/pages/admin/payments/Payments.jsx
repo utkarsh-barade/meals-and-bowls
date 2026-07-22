@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import RecordPaymentModal from './RecordPaymentModal';
 import { DollarSign, Check, Clock, Calendar } from 'lucide-react';
+import { formatDate } from '@/utils/dateUtils';
 
 export default function Payments() {
   const queryClient = useQueryClient();
@@ -103,7 +104,7 @@ export default function Payments() {
                         <td className="p-4">{p.planName || <span className="text-text-placeholder">Manual</span>}</td>
                         <td className="p-4 font-semibold text-primary">₹{p.amount}</td>
                         <td className="p-4 text-text-secondary">
-                          {new Date(p.paymentDate).toLocaleDateString()}
+                          {formatDate(p.paymentDate)}
                         </td>
                         <td className="p-4 text-right">
                           <button
@@ -148,7 +149,7 @@ export default function Payments() {
                           <p className="text-caption text-text-secondary">{p.customerMobile}</p>
                         </td>
                         <td className="p-4 text-text-secondary">
-                          {new Date(p.paymentDate).toLocaleDateString()}
+                          {formatDate(p.paymentDate)}
                         </td>
                         <td className="p-4">{p.planName || <span className="text-text-placeholder">Manual</span>}</td>
                         <td className="p-4 font-semibold text-text-primary">₹{p.amount}</td>

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { customerPortalService } from '@/services/customerPortalService';
 import Card from '@/components/ui/Card';
 import { Calendar, Check, Minus } from 'lucide-react';
+import { formatDate } from '@/utils/dateUtils';
 
 export default function CustomerMealHistory() {
   const { data, isLoading, error } = useQuery({
@@ -51,7 +52,7 @@ export default function CustomerMealHistory() {
                   {historyList.map((row) => (
                     <tr key={row.date} className="hover:bg-surface-muted/50">
                       <td className="p-4 font-medium">
-                        {new Date(row.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                        {formatDate(row.date)}
                       </td>
                       <td className="p-4 text-center">
                         {row.lunchServed ? (

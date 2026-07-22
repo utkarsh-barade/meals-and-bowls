@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { customerPortalService } from '@/services/customerPortalService';
 import Card from '@/components/ui/Card';
 import { Package, Utensils, AlertCircle } from 'lucide-react';
+import { formatDate } from '@/utils/dateUtils';
 
 export default function CustomerDashboard() {
   const { data, isLoading, error } = useQuery({
@@ -37,7 +38,7 @@ export default function CustomerDashboard() {
                   <p className="text-caption text-text-secondary uppercase tracking-wider">Plan Details</p>
                   <p className="text-body font-medium">{activeSubscription.plan?.name}</p>
                   <p className="text-small text-text-secondary">
-                    Valid from {new Date(activeSubscription.startDate).toLocaleDateString()} to {new Date(activeSubscription.expiryDate).toLocaleDateString()}
+                    Valid from {formatDate(activeSubscription.startDate)} to {formatDate(activeSubscription.expiryDate)}
                   </p>
                 </div>
                 
@@ -112,7 +113,7 @@ export default function CustomerDashboard() {
                     <div key={payment.id} className="flex justify-between items-center p-3 border border-surface-border rounded-lg">
                       <div>
                         <p className="font-medium text-text-primary">{payment.planName || 'Manual Payment'}</p>
-                        <p className="text-xs text-text-secondary">Due: {new Date(payment.paymentDate).toLocaleDateString()}</p>
+                        <p className="text-xs text-text-secondary">Due: {formatDate(payment.paymentDate)}</p>
                       </div>
                       <p className="font-bold text-danger">₹{payment.amount}</p>
                     </div>

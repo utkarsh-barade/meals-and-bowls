@@ -7,6 +7,7 @@ import {
   CalendarDays, User, Clock, CreditCard,
   CheckCircle2, XCircle, ChevronDown
 } from 'lucide-react';
+import { formatDate } from '@/utils/dateUtils';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ function CustomerMealReport() {
             <tbody className="divide-y divide-surface-border text-text-primary">
               {rows.map(r => (
                 <tr key={r.logId} className="hover:bg-surface-muted/50">
-                  <td className="p-4 font-medium">{new Date(r.mealDate).toLocaleDateString('en-IN')}</td>
+                  <td className="p-4 font-medium">{formatDate(r.mealDate)}</td>
                   <td className="p-4">
                     <StatusBadge color={r.mealType === 'LUNCH' ? 'yellow' : 'blue'}>{r.mealType}</StatusBadge>
                   </td>
@@ -237,7 +238,7 @@ function ExpiringPlans() {
                   <td className="p-4 text-text-secondary">{r.customerMobile}</td>
                   <td className="p-4">{r.planName}</td>
                   <td className="p-4 text-text-secondary">
-                    {new Date(r.expiryDate).toLocaleDateString('en-IN')}
+                    {formatDate(r.expiryDate)}
                   </td>
                   <td className="p-4 text-center">
                     <StatusBadge color={r.daysLeft <= 3 ? 'red' : 'yellow'}>{r.daysLeft}d</StatusBadge>
@@ -290,7 +291,7 @@ function PendingPayments() {
                   <td className="p-4">{r.planName ?? <span className="text-text-placeholder">Manual</span>}</td>
                   <td className="p-4 font-semibold text-primary">₹{r.amount}</td>
                   <td className="p-4 text-text-secondary">
-                    {new Date(r.paymentDate).toLocaleDateString('en-IN')}
+                    {formatDate(r.paymentDate)}
                   </td>
                   <td className="p-4 text-center">
                     <StatusBadge color="red">PENDING</StatusBadge>
