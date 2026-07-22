@@ -33,6 +33,9 @@ public class WhatsAppNotificationService {
     @Value("${app.whatsapp.test-number:}")
     private String testNumber;
 
+    @Value("${WHATSAPP_TEMPLATE_NAME:}")
+    private String templateName;
+
     public WhatsAppNotificationService(RestTemplateBuilder restTemplateBuilder) {
         // Set strict 2-second timeouts so it never blocks the system
         this.restTemplate = restTemplateBuilder
@@ -47,6 +50,7 @@ public class WhatsAppNotificationService {
         CompletableFuture.runAsync(() -> {
             String cleanToken = apiToken != null ? apiToken.replaceAll("[\\r\\n\\s]+", "") : "";
             String cleanPhoneId = phoneNumberId != null ? phoneNumberId.replaceAll("[\\r\\n\\s]+", "") : "";
+            String cleanTemplate = templateName != null ? templateName.replaceAll("[\\r\\n\\s]+", "") : "";
 
             if (cleanToken.isEmpty() || cleanPhoneId.isEmpty()) {
                 log.warn("WhatsApp API credentials are not configured. Skipping notification to {}: {}", toPhoneNumber, message);
@@ -70,16 +74,40 @@ public class WhatsAppNotificationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(cleanToken);
 
-            Map<String, Object> textObj = new HashMap<>();
-            textObj.put("preview_url", false);
-            textObj.put("body", message);
-
             Map<String, Object> body = new HashMap<>();
             body.put("messaging_product", "whatsapp");
             body.put("recipient_type", "individual");
             body.put("to", formattedNumber);
-            body.put("type", "text");
-            body.put("text", textObj);
+
+            if (!cleanTemplate.isEmpty()) {
+                // Use Meta Approved Template (Bypasses 24-hour window rule completely!)
+                Map<String, Object> langObj = new HashMap<>();
+                langObj.put("code", "en");
+
+                Map<String, Object> textParam = new HashMap<>();
+                textParam.put("type", "text");
+                textParam.put("text", message.length() > 1000 ? message.substring(0, 1000) : message);
+
+                Map<String, Object> bodyComp = new HashMap<>();
+                bodyComp.put("type", "body");
+                bodyComp.put("parameters", java.util.List.of(textParam));
+
+                Map<String, Object> templateObj = new HashMap<>();
+                templateObj.put("name", cleanTemplate);
+                templateObj.put("language", langObj);
+                templateObj.put("components", java.util.List.of(bodyComp));
+
+                body.put("type", "template");
+                body.put("template", templateObj);
+            } else {
+                // Fallback to Free-Form Text Message (Works within 24-hour window)
+                Map<String, Object> textObj = new HashMap<>();
+                textObj.put("preview_url", false);
+                textObj.put("body", message);
+
+                body.put("type", "text");
+                body.put("text", textObj);
+            }
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
