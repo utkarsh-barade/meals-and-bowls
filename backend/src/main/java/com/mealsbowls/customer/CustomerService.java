@@ -45,7 +45,13 @@ public class CustomerService {
         } else {
             customers = customerRepository.findByStatus(CustomerStatus.ACTIVE, pageable);
         }
-        return customers.map(customerMapper::toDto);
+        return customers.map(c -> {
+            CustomerDto dto = customerMapper.toDto(c);
+            if (dto.getCreatedAt() == null) {
+                dto.setCreatedAt(c.getUpdatedAt() != null ? c.getUpdatedAt() : java.time.LocalDateTime.now());
+            }
+            return dto;
+        });
     }
     
     public java.util.List<CustomerDto> getPendingCustomers() {
@@ -70,8 +76,15 @@ public class CustomerService {
         customer.setId(sequenceGeneratorService.generateSequence(Customer.class.getSimpleName()));
         customer.setPhotoUrl("https://api.dicebear.com/7.x/avataaars/svg?seed=" + request.getMobileNumber());
         customer.setStatus(CustomerStatus.ACTIVE);
+        if (customer.getCreatedAt() == null) {
+            customer.setCreatedAt(java.time.LocalDateTime.now());
+        }
         customer = customerRepository.save(customer);
-        return customerMapper.toDto(customer);
+        CustomerDto dto = customerMapper.toDto(customer);
+        if (dto.getCreatedAt() == null) {
+            dto.setCreatedAt(java.time.LocalDateTime.now());
+        }
+        return dto;
     }
 
     @Transactional

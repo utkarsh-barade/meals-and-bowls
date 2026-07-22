@@ -143,7 +143,14 @@ export default function Customers() {
                           </div>
                         </Table.Cell>
                         <Table.Cell>{customer.mobileNumber}</Table.Cell>
-                        <Table.Cell>{new Date(customer.createdAt).toLocaleDateString()}</Table.Cell>
+                        <Table.Cell>
+                          {(() => {
+                            if (!customer.createdAt) return 'N/A';
+                            const d = new Date(customer.createdAt);
+                            if (isNaN(d.getTime()) || d.getFullYear() <= 1970) return 'N/A';
+                            return d.toLocaleDateString();
+                          })()}
+                        </Table.Cell>
                         <Table.Cell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button variant="ghost" className="p-2" onClick={() => navigate(`/admin/customers/${customer.id}`)}>
