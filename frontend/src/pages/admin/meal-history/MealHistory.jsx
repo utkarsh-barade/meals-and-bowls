@@ -59,11 +59,39 @@ export default function MealHistory() {
 
   const { mutate: correctMeal } = useMutation({
     mutationFn: ({ date, type, isServed }) => mealService.correctMeal(selectedCustomer.id, date, type, isServed),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-history', selectedCustomer.id, startDate, endDate] });
+    onMutate: async ({ date, type, isServed }) => {
+      await queryClient.cancelQueries({ queryKey: ['meal-history', selectedCustomer.id, startDate, endDate] });
+      const previousData = queryClient.getQueryData(['meal-history', selectedCustomer.id, startDate, endDate]);
+
+      queryClient.setQueryData(['meal-history', selectedCustomer.id, startDate, endDate], (old) => {
+        if (!old?.data?.data) return old;
+        const currentDayObj = old.data.data[date] || { mealDate: date, lunchServed: false, dinnerServed: false };
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: {
+              ...old.data.data,
+              [date]: {
+                ...currentDayObj,
+                lunchServed: type === 'LUNCH' ? isServed : currentDayObj.lunchServed,
+                dinnerServed: type === 'DINNER' ? isServed : currentDayObj.dinnerServed,
+              },
+            },
+          },
+        };
+      });
+
+      return { previousData };
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['meal-history', selectedCustomer.id, startDate, endDate], context.previousData);
+      }
       alert(error.response?.data?.message || 'Failed to correct meal');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-history', selectedCustomer.id, startDate, endDate] });
     }
   });
 
