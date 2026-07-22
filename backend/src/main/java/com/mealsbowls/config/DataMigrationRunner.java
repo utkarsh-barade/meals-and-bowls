@@ -6,7 +6,6 @@ import com.mealsbowls.meal.MealAuditLog;
 import com.mealsbowls.meal.MealAuditLogRepository;
 import com.mealsbowls.payment.Payment;
 import com.mealsbowls.payment.PaymentRepository;
-import com.mealsbowls.subscription.Plan;
 import com.mealsbowls.subscription.PlanRepository;
 import com.mealsbowls.subscription.Subscription;
 import com.mealsbowls.subscription.SubscriptionRepository;
@@ -15,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
@@ -35,18 +35,28 @@ public class DataMigrationRunner implements CommandLineRunner {
     @Override
     public void run(String... args) {
         try {
-            log.info("Checking for legacy DBRef documents in MongoDB to migrate...");
-            migrateSubscriptions();
-            migrateMealLogs();
-            migratePayments();
-            log.info("MongoDB data migration check complete.");
+            Query unmigratedQuery = Query.query(Criteria.where("customerId").exists(false));
+            long unmigratedCount = mongoTemplate.count(unmigratedQuery, "subscriptions")
+                    + mongoTemplate.count(unmigratedQuery, "meal_audit_logs")
+                    + mongoTemplate.count(unmigratedQuery, "payments");
+
+            if (unmigratedCount == 0) {
+                log.info("All MongoDB documents are already migrated to flat ID fields.");
+                return;
+            }
+
+            log.info("Migrating {} legacy DBRef documents in MongoDB...", unmigratedCount);
+            migrateSubscriptions(unmigratedQuery);
+            migrateMealLogs(unmigratedQuery);
+            migratePayments(unmigratedQuery);
+            log.info("MongoDB data migration complete.");
         } catch (Exception e) {
             log.error("Error during data migration check", e);
         }
     }
 
-    private void migrateSubscriptions() {
-        List<Document> rawSubs = mongoTemplate.find(new Query(), Document.class, "subscriptions");
+    private void migrateSubscriptions(Query query) {
+        List<Document> rawSubs = mongoTemplate.find(query, Document.class, "subscriptions");
         for (Document doc : rawSubs) {
             boolean updated = false;
             Long id = doc.getLong("_id");
@@ -80,13 +90,12 @@ public class DataMigrationRunner implements CommandLineRunner {
 
             if (updated) {
                 subscriptionRepository.save(sub);
-                log.info("Migrated Subscription ID {}", id);
             }
         }
     }
 
-    private void migrateMealLogs() {
-        List<Document> rawLogs = mongoTemplate.find(new Query(), Document.class, "meal_audit_logs");
+    private void migrateMealLogs(Query query) {
+        List<Document> rawLogs = mongoTemplate.find(query, Document.class, "meal_audit_logs");
         for (Document doc : rawLogs) {
             boolean updated = false;
             Long id = doc.getLong("_id");
@@ -115,13 +124,12 @@ public class DataMigrationRunner implements CommandLineRunner {
 
             if (updated) {
                 mealAuditLogRepository.save(logItem);
-                log.info("Migrated MealAuditLog ID {}", id);
             }
         }
     }
 
-    private void migratePayments() {
-        List<Document> rawPayments = mongoTemplate.find(new Query(), Document.class, "payments");
+    private void migratePayments(Query query) {
+        List<Document> rawPayments = mongoTemplate.find(query, Document.class, "payments");
         for (Document doc : rawPayments) {
             boolean updated = false;
             Long id = doc.getLong("_id");
@@ -159,7 +167,6 @@ public class DataMigrationRunner implements CommandLineRunner {
 
             if (updated) {
                 paymentRepository.save(p);
-                log.info("Migrated Payment ID {}", id);
             }
         }
     }
