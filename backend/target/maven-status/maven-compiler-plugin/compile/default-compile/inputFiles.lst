@@ -12,6 +12,7 @@ E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\CorsConfig.
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\DataMigrationRunner.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\DataSeeder.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\JwtConfig.java
+E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\MongoConfig.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\SecurityConfig.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\config\WebConfig.java
 E:\Downloads\meals-bowls\backend\src\main\java\com\mealsbowls\customer\Customer.java

@@ -1,8 +1,7 @@
 spring:
   application:
     name: meals-bowls
-  main:
-    lazy-initialization: true
+
 
   data:
     mongodb:

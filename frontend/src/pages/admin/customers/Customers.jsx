@@ -24,12 +24,32 @@ export default function Customers() {
 
   const { mutate: deleteCustomer } = useMutation({
     mutationFn: (id) => customerService.deleteCustomer(id),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['customers'] });
+      const previousData = queryClient.getQueryData(['customers', search, page, size]);
+
+      queryClient.setQueryData(['customers', search, page, size], (old) => {
+        if (!old?.data?.content) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            content: old.data.content.filter((c) => c.id !== id),
+          },
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (error, id, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['customers', search, page, size], context.previousData);
+      }
+      alert(error.response?.data?.message || 'Failed to delete customer. Ensure they have no active subscriptions or payments.');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
-    onError: (error) => {
-      alert(error.response?.data?.message || 'Failed to delete customer. Ensure they have no active subscriptions or payments.');
-    }
   });
 
   const handleDelete = (id, name) => {

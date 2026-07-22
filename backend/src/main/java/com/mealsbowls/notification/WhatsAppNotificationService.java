@@ -81,9 +81,7 @@ public class WhatsAppNotificationService {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
             try {
-                // Background delay (1s) to respect Meta rate limits without blocking backend requests
-                Thread.sleep(1000);
-                
+
                 ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
                 if (response.getStatusCode().is2xxSuccessful()) {
                     log.info("WhatsApp notification sent successfully to {}", formattedNumber);

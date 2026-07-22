@@ -6,18 +6,52 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { Search, Utensils, CheckCircle } from 'lucide-react';
 
-function CustomerMealRow({ customer }) {
+function CustomerMealRow({ customer, searchTerm }) {
   const queryClient = useQueryClient();
   const today = new Date().toLocaleDateString('en-CA');
 
   const { mutate: serveMeal, isPending } = useMutation({
     mutationFn: (type) => mealService.serveMeal(customer.id, today, type),
-    onSuccess: () => {
+    onMutate: async (type) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['meal-management-list'] });
+
+      // Snapshot previous data
+      const previousData = queryClient.getQueryData(['meal-management-list', searchTerm]);
+
+      // Optimistically update query cache for 0ms instant UI feedback
+      queryClient.setQueryData(['meal-management-list', searchTerm], (old) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((c) => {
+              if (c.id === customer.id) {
+                return {
+                  ...c,
+                  lunchServed: type === 'LUNCH' ? true : c.lunchServed,
+                  dinnerServed: type === 'DINNER' ? true : c.dinnerServed,
+                  mealsRemaining: Math.max(0, c.mealsRemaining - 1),
+                };
+              }
+              return c;
+            }),
+          },
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (error, type, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['meal-management-list', searchTerm], context.previousData);
+      }
+      alert(error.response?.data?.message || 'Failed to serve meal');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['meal-management-list'] });
     },
-    onError: (error) => {
-      alert(error.response?.data?.message || 'Failed to serve meal');
-    }
   });
 
   return (
@@ -38,7 +72,7 @@ function CustomerMealRow({ customer }) {
 
       {!customer.hasActiveSubscription ? (
         <span className="text-small text-danger bg-danger/10 px-3 py-1 rounded-full font-medium">No Active Plan</span>
-      ) : customer.mealsRemaining <= 0 ? (
+      ) : customer.mealsRemaining <= 0 && !customer.lunchServed && !customer.dinnerServed ? (
         <span className="text-small text-danger bg-danger/10 px-3 py-1 rounded-full font-medium">0 Meals Left</span>
       ) : (
         <div className="flex items-center gap-4">
@@ -106,7 +140,7 @@ export default function MealManagement() {
           ) : (
             <div className="space-y-2">
               {customers.map(customer => (
-                <CustomerMealRow key={customer.id} customer={customer} />
+                <CustomerMealRow key={customer.id} customer={customer} searchTerm={searchTerm} />
               ))}
             </div>
           )}

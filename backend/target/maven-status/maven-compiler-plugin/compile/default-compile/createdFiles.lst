@@ -20,6 +20,7 @@ com\mealsbowls\report\DailyMealReportDTO$DailyMealReportDTOBuilder.class
 com\mealsbowls\customer\CustomerStatus.class
 com\mealsbowls\customer\dto\CustomerDto.class
 com\mealsbowls\subscription\SubscriptionStatus.class
+com\mealsbowls\config\MongoConfig.class
 com\mealsbowls\report\ExpiringPlanDTO$ExpiringPlanDTOBuilder.class
 com\mealsbowls\config\DataMigrationRunner.class
 com\mealsbowls\customer\dto\CustomerDto$CustomerDtoBuilder.class

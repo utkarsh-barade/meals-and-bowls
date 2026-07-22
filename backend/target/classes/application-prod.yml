@@ -1,6 +1,5 @@
 spring:
-  main:
-    lazy-initialization: true
+
   data:
     mongodb:
       uri: ${MONGODB_URI}
