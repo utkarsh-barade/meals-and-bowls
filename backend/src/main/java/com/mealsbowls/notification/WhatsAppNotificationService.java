@@ -45,7 +45,10 @@ public class WhatsAppNotificationService {
     public CompletableFuture<Void> sendNotification(String toPhoneNumber, String message) {
         // Run in a background thread completely separate from the request thread
         CompletableFuture.runAsync(() -> {
-            if (apiToken == null || apiToken.isEmpty() || phoneNumberId == null || phoneNumberId.isEmpty()) {
+            String cleanToken = apiToken != null ? apiToken.replaceAll("[\\r\\n\\s]+", "") : "";
+            String cleanPhoneId = phoneNumberId != null ? phoneNumberId.replaceAll("[\\r\\n\\s]+", "") : "";
+
+            if (cleanToken.isEmpty() || cleanPhoneId.isEmpty()) {
                 log.warn("WhatsApp API credentials are not configured. Skipping notification to {}: {}", toPhoneNumber, message);
                 return;
             }
@@ -61,11 +64,11 @@ public class WhatsAppNotificationService {
                 formattedNumber = "91" + formattedNumber;
             }
 
-            String url = "https://graph.facebook.com/v17.0/" + phoneNumberId + "/messages";
+            String url = "https://graph.facebook.com/v19.0/" + cleanPhoneId + "/messages";
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiToken);
+            headers.setBearerAuth(cleanToken);
 
             Map<String, Object> textObj = new HashMap<>();
             textObj.put("preview_url", false);
@@ -81,15 +84,16 @@ public class WhatsAppNotificationService {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
             try {
-
                 ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
                 if (response.getStatusCode().is2xxSuccessful()) {
-                    log.info("WhatsApp notification sent successfully to {}", formattedNumber);
+                    log.info("WhatsApp notification sent successfully to {}: {}", formattedNumber, response.getBody());
                 } else {
-                    log.error("Failed to send WhatsApp notification. Status: {}, Response: {}", response.getStatusCode(), response.getBody());
+                    log.error("Failed to send WhatsApp notification to {}. Status: {}, Response: {}", formattedNumber, response.getStatusCode(), response.getBody());
                 }
+            } catch (org.springframework.web.client.HttpStatusCodeException e) {
+                log.error("Meta WhatsApp API error for {}: Status Code: {}, Error Body: {}", formattedNumber, e.getStatusCode(), e.getResponseBodyAsString());
             } catch (Exception e) {
-                log.error("Error occurred while sending WhatsApp notification to {}: {}", formattedNumber, e.getMessage());
+                log.error("Error occurred while sending WhatsApp notification to {}: {}", formattedNumber, e.getMessage(), e);
             }
         });
 
