@@ -80,22 +80,27 @@ public class WhatsAppNotificationService {
             body.put("to", formattedNumber);
 
             if (!cleanTemplate.isEmpty()) {
-                // Use Meta Approved Template (Bypasses 24-hour window rule completely!)
                 Map<String, Object> langObj = new HashMap<>();
-                langObj.put("code", "en");
-
-                Map<String, Object> textParam = new HashMap<>();
-                textParam.put("type", "text");
-                textParam.put("text", message.length() > 1000 ? message.substring(0, 1000) : message);
-
-                Map<String, Object> bodyComp = new HashMap<>();
-                bodyComp.put("type", "body");
-                bodyComp.put("parameters", java.util.List.of(textParam));
-
                 Map<String, Object> templateObj = new HashMap<>();
                 templateObj.put("name", cleanTemplate);
-                templateObj.put("language", langObj);
-                templateObj.put("components", java.util.List.of(bodyComp));
+
+                if (cleanTemplate.equalsIgnoreCase("hello_world")) {
+                    langObj.put("code", "en_US");
+                    templateObj.put("language", langObj);
+                } else {
+                    langObj.put("code", "en");
+                    templateObj.put("language", langObj);
+
+                    Map<String, Object> textParam = new HashMap<>();
+                    textParam.put("type", "text");
+                    textParam.put("text", message.length() > 1000 ? message.substring(0, 1000) : message);
+
+                    Map<String, Object> bodyComp = new HashMap<>();
+                    bodyComp.put("type", "body");
+                    bodyComp.put("parameters", java.util.List.of(textParam));
+
+                    templateObj.put("components", java.util.List.of(bodyComp));
+                }
 
                 body.put("type", "template");
                 body.put("template", templateObj);
