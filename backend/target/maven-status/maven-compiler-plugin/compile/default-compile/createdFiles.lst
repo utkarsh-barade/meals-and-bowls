@@ -40,6 +40,7 @@ com\mealsbowls\common\SequenceGeneratorService$DatabaseSequence.class
 com\mealsbowls\subscription\PlanRepository.class
 com\mealsbowls\customer\dto\CustomerProfileDTO$CustomerProfileDTOBuilder.class
 com\mealsbowls\subscription\PlanDTO.class
+com\mealsbowls\common\PublicTestController.class
 com\mealsbowls\payment\PaymentController$RecordPaymentRequest.class
 com\mealsbowls\subscription\package-info.class
 com\mealsbowls\customer\Customer$CustomerBuilder.class

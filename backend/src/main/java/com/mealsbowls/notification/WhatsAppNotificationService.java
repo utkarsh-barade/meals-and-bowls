@@ -132,4 +132,90 @@ public class WhatsAppNotificationService {
 
         return CompletableFuture.completedFuture(null);
     }
+
+    public Map<String, Object> testNotificationSync(String toPhoneNumber) {
+        Map<String, Object> result = new HashMap<>();
+        String cleanToken = apiToken != null ? apiToken.replaceAll("[\\r\\n\\s]+", "") : "";
+        String cleanPhoneId = phoneNumberId != null ? phoneNumberId.replaceAll("[\\r\\n\\s]+", "") : "";
+        String cleanTemplate = templateName != null ? templateName.replaceAll("[\\r\\n\\s]+", "") : "";
+
+        result.put("tokenConfigured", !cleanToken.isEmpty());
+        result.put("phoneIdConfigured", !cleanPhoneId.isEmpty());
+        result.put("templateName", cleanTemplate);
+
+        if (cleanToken.isEmpty() || cleanPhoneId.isEmpty()) {
+            result.put("status", "ERROR");
+            result.put("error", "WHATSAPP_API_TOKEN or WHATSAPP_PHONE_NUMBER_ID is missing on Render!");
+            return result;
+        }
+
+        String formattedNumber = toPhoneNumber.replaceAll("[^0-9]", "");
+        if (formattedNumber.length() == 10) {
+            formattedNumber = "91" + formattedNumber;
+        }
+        result.put("targetNumber", formattedNumber);
+
+        String url = "https://graph.facebook.com/v19.0/" + cleanPhoneId + "/messages";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(cleanToken);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("messaging_product", "whatsapp");
+        body.put("recipient_type", "individual");
+        body.put("to", formattedNumber);
+
+        if (!cleanTemplate.isEmpty()) {
+            Map<String, Object> langObj = new HashMap<>();
+            Map<String, Object> templateObj = new HashMap<>();
+            templateObj.put("name", cleanTemplate);
+
+            if (cleanTemplate.equalsIgnoreCase("hello_world")) {
+                langObj.put("code", "en_US");
+                templateObj.put("language", langObj);
+            } else {
+                langObj.put("code", "en");
+                templateObj.put("language", langObj);
+
+                Map<String, Object> textParam = new HashMap<>();
+                textParam.put("type", "text");
+                textParam.put("text", "Test notification from Meals & Bowls");
+
+                Map<String, Object> bodyComp = new HashMap<>();
+                bodyComp.put("type", "body");
+                bodyComp.put("parameters", java.util.List.of(textParam));
+
+                templateObj.put("components", java.util.List.of(bodyComp));
+            }
+
+            body.put("type", "template");
+            body.put("template", templateObj);
+        } else {
+            Map<String, Object> textObj = new HashMap<>();
+            textObj.put("preview_url", false);
+            textObj.put("body", "Test notification from Meals & Bowls");
+
+            body.put("type", "text");
+            body.put("text", textObj);
+        }
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            result.put("status", "SUCCESS");
+            result.put("httpStatusCode", response.getStatusCode().value());
+            result.put("metaResponseBody", response.getBody());
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            result.put("status", "META_API_ERROR");
+            result.put("httpStatusCode", e.getStatusCode().value());
+            result.put("metaResponseBody", e.getResponseBodyAsString());
+        } catch (Exception e) {
+            result.put("status", "EXCEPTION");
+            result.put("exceptionMessage", e.getMessage());
+        }
+
+        return result;
+    }
 }
