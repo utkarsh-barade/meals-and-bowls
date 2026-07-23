@@ -67,6 +67,8 @@ public class WhatsAppNotificationService {
             if (formattedNumber.length() == 10) {
                 formattedNumber = "91" + formattedNumber;
             }
+            // Meta E.164 format requires + prefix
+            String toNumber = "+" + formattedNumber;
 
             String url = "https://graph.facebook.com/v19.0/" + cleanPhoneId + "/messages";
 
@@ -77,7 +79,7 @@ public class WhatsAppNotificationService {
             Map<String, Object> body = new HashMap<>();
             body.put("messaging_product", "whatsapp");
             body.put("recipient_type", "individual");
-            body.put("to", formattedNumber);
+            body.put("to", toNumber);
 
             if (!cleanTemplate.isEmpty()) {
                 Map<String, Object> langObj = new HashMap<>();
@@ -154,7 +156,9 @@ public class WhatsAppNotificationService {
         if (formattedNumber.length() == 10) {
             formattedNumber = "91" + formattedNumber;
         }
-        result.put("targetNumber", formattedNumber);
+        // Meta E.164 format requires + prefix
+        String toNumber = "+" + formattedNumber;
+        result.put("targetNumber", toNumber);
 
         String url = "https://graph.facebook.com/v19.0/" + cleanPhoneId + "/messages";
 
@@ -165,7 +169,7 @@ public class WhatsAppNotificationService {
         Map<String, Object> body = new HashMap<>();
         body.put("messaging_product", "whatsapp");
         body.put("recipient_type", "individual");
-        body.put("to", formattedNumber);
+        body.put("to", toNumber);
 
         if (!cleanTemplate.isEmpty()) {
             String langCode = cleanTemplate.equalsIgnoreCase("hello_world") ? "en_US" : "en";
