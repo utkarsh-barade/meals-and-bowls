@@ -93,7 +93,6 @@ public class WhatsAppNotificationService {
 
                     Map<String, Object> textParam = new HashMap<>();
                     textParam.put("type", "text");
-                    textParam.put("parameter_name", "details");
                     textParam.put("text", message.length() > 1000 ? message.substring(0, 1000) : message);
 
                     Map<String, Object> bodyComp = new HashMap<>();
@@ -181,7 +180,6 @@ public class WhatsAppNotificationService {
 
                 Map<String, Object> textParam = new HashMap<>();
                 textParam.put("type", "text");
-                textParam.put("parameter_name", "details");
                 textParam.put("text", "Test notification from Meals & Bowls");
 
                 Map<String, Object> bodyComp = new HashMap<>();
