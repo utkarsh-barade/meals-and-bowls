@@ -231,14 +231,16 @@ public class WhatsAppNotificationService {
             return result;
         }
 
-        String url = "https://graph.facebook.com/v19.0/" + cleanPhoneId + "?fields=waba_id,id,display_phone_number";
+        String url = "https://graph.facebook.com/v19.0/998863066466456/message_templates?fields=name,status,language";
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(cleanToken);
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
-            result.put("phoneDetails", response.getBody());
+            result.put("templatesMetaResponse", response.getBody());
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            result.put("metaError", e.getResponseBodyAsString());
         } catch (Exception e) {
             result.put("phoneError", e.getMessage());
         }
