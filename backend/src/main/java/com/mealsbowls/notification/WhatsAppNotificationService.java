@@ -168,26 +168,17 @@ public class WhatsAppNotificationService {
         body.put("to", formattedNumber);
 
         if (!cleanTemplate.isEmpty()) {
-            Map<String, Object> langObj = new HashMap<>();
+            String langCode = cleanTemplate.equalsIgnoreCase("hello_world") ? "en_US" : "en";
+            
+            // Try standard payload format first
+            Map<String, Object> langObj = Map.of("code", langCode);
             Map<String, Object> templateObj = new HashMap<>();
             templateObj.put("name", cleanTemplate);
-
-            String langCode = "en";
-            if (cleanTemplate.equalsIgnoreCase("hello_world")) {
-                langCode = "en_US";
-            }
-            langObj.put("code", langCode);
             templateObj.put("language", langObj);
 
             if (!cleanTemplate.equalsIgnoreCase("hello_world")) {
-                Map<String, Object> textParam = new HashMap<>();
-                textParam.put("type", "text");
-                textParam.put("text", "Test notification from Meals and Bowls");
-
-                Map<String, Object> bodyComp = new HashMap<>();
-                bodyComp.put("type", "body");
-                bodyComp.put("parameters", java.util.List.of(textParam));
-
+                Map<String, Object> textParam = Map.of("type", "text", "text", "Your Lunch has been served.");
+                Map<String, Object> bodyComp = Map.of("type", "body", "parameters", java.util.List.of(textParam));
                 templateObj.put("components", java.util.List.of(bodyComp));
             }
 
