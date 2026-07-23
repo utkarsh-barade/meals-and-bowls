@@ -231,7 +231,7 @@ public class WhatsAppNotificationService {
             return result;
         }
 
-        String url = "https://graph.facebook.com/v19.0/998863066466456/message_templates?fields=name,status,language";
+        String url = "https://graph.facebook.com/v19.0/998863066466456/message_templates?fields=name,status,language,components";
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(cleanToken);
         HttpEntity<Void> request = new HttpEntity<>(headers);
