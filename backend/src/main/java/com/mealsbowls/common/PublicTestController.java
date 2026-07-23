@@ -19,4 +19,9 @@ public class PublicTestController {
         Map<String, Object> response = whatsAppNotificationService.testNotificationSync(phone);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/meta-info")
+    public ResponseEntity<Map<String, Object>> metaInfo() {
+        return ResponseEntity.ok(whatsAppNotificationService.fetchMetaTemplates());
+    }
 }

@@ -220,4 +220,29 @@ public class WhatsAppNotificationService {
 
         return result;
     }
+
+    public Map<String, Object> fetchMetaTemplates() {
+        Map<String, Object> result = new HashMap<>();
+        String cleanToken = apiToken != null ? apiToken.replaceAll("[\\r\\n\\s]+", "") : "";
+        String cleanPhoneId = phoneNumberId != null ? phoneNumberId.replaceAll("[\\r\\n\\s]+", "") : "";
+
+        if (cleanToken.isEmpty() || cleanPhoneId.isEmpty()) {
+            result.put("error", "WHATSAPP_API_TOKEN or WHATSAPP_PHONE_NUMBER_ID is missing");
+            return result;
+        }
+
+        String url = "https://graph.facebook.com/v19.0/" + cleanPhoneId + "?fields=waba_id,id,display_phone_number";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(cleanToken);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+            result.put("phoneDetails", response.getBody());
+        } catch (Exception e) {
+            result.put("phoneError", e.getMessage());
+        }
+
+        return result;
+    }
 }
