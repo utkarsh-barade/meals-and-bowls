@@ -93,7 +93,8 @@ public class WhatsAppNotificationService {
 
                     Map<String, Object> textParam = new HashMap<>();
                     textParam.put("type", "text");
-                    textParam.put("text", message.length() > 1000 ? message.substring(0, 1000) : message);
+                    String cleanMsg = message.replace("&", "and");
+                    textParam.put("text", cleanMsg.length() > 1000 ? cleanMsg.substring(0, 1000) : cleanMsg);
 
                     Map<String, Object> bodyComp = new HashMap<>();
                     bodyComp.put("type", "body");
@@ -171,16 +172,17 @@ public class WhatsAppNotificationService {
             Map<String, Object> templateObj = new HashMap<>();
             templateObj.put("name", cleanTemplate);
 
+            String langCode = "en";
             if (cleanTemplate.equalsIgnoreCase("hello_world")) {
-                langObj.put("code", "en_US");
-                templateObj.put("language", langObj);
-            } else {
-                langObj.put("code", "en");
-                templateObj.put("language", langObj);
+                langCode = "en_US";
+            }
+            langObj.put("code", langCode);
+            templateObj.put("language", langObj);
 
+            if (!cleanTemplate.equalsIgnoreCase("hello_world")) {
                 Map<String, Object> textParam = new HashMap<>();
                 textParam.put("type", "text");
-                textParam.put("text", "Test notification from Meals & Bowls");
+                textParam.put("text", "Test notification from Meals and Bowls");
 
                 Map<String, Object> bodyComp = new HashMap<>();
                 bodyComp.put("type", "body");
