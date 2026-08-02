@@ -57,16 +57,20 @@ public class FastSmsNotificationService {
             formattedNumber = formattedNumber.substring(formattedNumber.length() - 10);
         }
 
-        // Fast2SMS Quick SMS API URL
+        // Fast2SMS Quick SMS API URL (POST JSON with authorization header)
         String url = "https://www.fast2sms.com/dev/bulkV2";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("authorization", cleanApiKey);
+        headers.set("User-Agent", "Mozilla/5.0");
+
+        // Clean message string (remove special non-ASCII characters for Fast2SMS compatibility)
+        String cleanMsg = message.replaceAll("[^\\x00-\\x7F]", "").trim();
 
         Map<String, Object> body = new HashMap<>();
         body.put("route", "q"); // Quick SMS route
-        body.put("message", message);
+        body.put("message", cleanMsg);
         body.put("language", "english");
         body.put("flash", "0");
         body.put("numbers", formattedNumber);
