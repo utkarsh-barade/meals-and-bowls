@@ -16,7 +16,7 @@ public class NotificationDispatcherService {
     private final WhatsAppNotificationService whatsAppNotificationService;
     private final FastSmsNotificationService fastSmsNotificationService;
 
-    @Value("${NOTIFICATION_PROVIDER:WHATSAPP}")
+    @Value("${app.notification.provider:${NOTIFICATION_PROVIDER:WHATSAPP}}")
     private String notificationProvider;
 
     public NotificationDispatcherService(WhatsAppNotificationService whatsAppNotificationService,

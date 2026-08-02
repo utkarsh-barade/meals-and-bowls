@@ -23,7 +23,7 @@ public class FastSmsNotificationService {
 
     private final RestTemplate restTemplate;
 
-    @Value("${FAST2SMS_API_KEY:}")
+    @Value("${app.notification.fast2sms-api-key:${FAST2SMS_API_KEY:}}")
     private String apiKey;
 
     public FastSmsNotificationService(RestTemplateBuilder restTemplateBuilder) {
