@@ -8,7 +8,8 @@ import { Search, Utensils, CheckCircle } from 'lucide-react';
 
 function CustomerMealRow({ customer, searchTerm }) {
   const queryClient = useQueryClient();
-  const today = new Date().toLocaleDateString('en-CA');
+  // Get Indian Standard Time YYYY-MM-DD
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
   const { mutate: serveMeal, isPending } = useMutation({
     mutationFn: (type) => mealService.serveMeal(customer.id, today, type),

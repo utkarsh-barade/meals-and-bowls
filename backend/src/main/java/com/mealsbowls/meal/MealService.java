@@ -29,7 +29,7 @@ public class MealService {
     private final SequenceGeneratorService sequenceGeneratorService;
 
     public List<com.mealsbowls.meal.dto.MealManagementCustomerDTO> getMealManagementList(String search) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"));
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 100);
         List<Customer> customers;
         if (search != null && !search.trim().isEmpty()) {
