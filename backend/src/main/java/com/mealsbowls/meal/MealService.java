@@ -113,6 +113,7 @@ public class MealService {
         log.setMealDate(date);
         log.setMealType(type);
         log.setAction(MealAction.SERVED);
+        log.setCreatedAt(java.time.LocalDateTime.now());
         mealAuditLogRepository.save(log); // 1 Atlas call
 
         activeSub.setMealsConsumed(activeSub.getMealsConsumed() + 1);
