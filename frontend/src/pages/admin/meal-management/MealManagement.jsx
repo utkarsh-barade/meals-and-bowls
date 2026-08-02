@@ -21,24 +21,25 @@ function CustomerMealRow({ customer, searchTerm }) {
 
       // Optimistically update query cache for 0ms instant UI feedback
       queryClient.setQueryData(['meal-management-list', searchTerm], (old) => {
-        if (!old?.data?.data) return old;
-        return {
-          ...old,
-          data: {
-            ...old.data,
-            data: old.data.data.map((c) => {
-              if (c.id === customer.id) {
-                return {
-                  ...c,
-                  lunchServed: type === 'LUNCH' ? true : c.lunchServed,
-                  dinnerServed: type === 'DINNER' ? true : c.dinnerServed,
-                  mealsRemaining: Math.max(0, c.mealsRemaining - 1),
-                };
-              }
-              return c;
-            }),
-          },
-        };
+        const currentData = old?.data?.data || old?.data;
+        if (!currentData || !Array.isArray(currentData)) return old;
+
+        const updatedList = currentData.map((c) => {
+          if (c.id === customer.id) {
+            return {
+              ...c,
+              lunchServed: type === 'LUNCH' ? true : c.lunchServed,
+              dinnerServed: type === 'DINNER' ? true : c.dinnerServed,
+              mealsRemaining: Math.max(0, c.mealsRemaining - 1),
+            };
+          }
+          return c;
+        });
+
+        if (old?.data?.data) {
+          return { ...old, data: { ...old.data, data: updatedList } };
+        }
+        return { ...old, data: updatedList };
       });
 
       return { previousData };
