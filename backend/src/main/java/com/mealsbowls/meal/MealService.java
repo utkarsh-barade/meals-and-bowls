@@ -4,11 +4,12 @@ import com.mealsbowls.common.SequenceGeneratorService;
 import com.mealsbowls.customer.Customer;
 import com.mealsbowls.customer.CustomerRepository;
 import com.mealsbowls.exception.AppException;
-import com.mealsbowls.notification.WhatsAppNotificationService;
+import com.mealsbowls.notification.NotificationDispatcherService;
 import com.mealsbowls.subscription.Subscription;
 import com.mealsbowls.subscription.SubscriptionRepository;
 import com.mealsbowls.subscription.SubscriptionStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -18,12 +19,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MealService {
 
     private final MealAuditLogRepository mealAuditLogRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final CustomerRepository customerRepository;
-    private final WhatsAppNotificationService notificationService;
+    private final NotificationDispatcherService notificationService;
     private final SequenceGeneratorService sequenceGeneratorService;
 
     public List<com.mealsbowls.meal.dto.MealManagementCustomerDTO> getMealManagementList(String search) {

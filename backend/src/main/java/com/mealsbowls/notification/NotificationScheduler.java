@@ -19,7 +19,7 @@ public class NotificationScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
     private final CustomerRepository customerRepository;
-    private final WhatsAppNotificationService notificationService;
+    private final NotificationDispatcherService notificationService;
 
     // Run every day at 10 AM (0 0 10 * * ?)
     @Scheduled(cron = "0 0 10 * * ?")

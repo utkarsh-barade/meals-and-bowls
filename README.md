@@ -186,6 +186,8 @@ The backend uses a multi-stage `Dockerfile` and strict environment variables for
    - `DB_PASSWORD` = Your database password
    - `JWT_SECRET` = A strong, random 256-bit string
    - `ADMIN_PASSWORD` = Your desired admin panel password
+   - `NOTIFICATION_PROVIDER` = `SMS` (Set to `SMS`, `WHATSAPP`, `BOTH`, or `NONE`)
+   - `FAST2SMS_API_KEY` = Your Fast2SMS API key
    - `WHATSAPP_API_TOKEN` = (Optional) Meta Developer API Token
    - `WHATSAPP_PHONE_NUMBER_ID` = (Optional) Meta Phone Number ID
    - `FRONTEND_URL` = The exact URL where you will deploy your frontend (e.g., `https://meals-bowls.vercel.app`)

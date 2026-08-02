@@ -3,7 +3,7 @@ package com.mealsbowls.subscription;
 import com.mealsbowls.customer.Customer;
 import com.mealsbowls.customer.CustomerRepository;
 import com.mealsbowls.exception.AppException;
-import com.mealsbowls.notification.WhatsAppNotificationService;
+import com.mealsbowls.notification.NotificationDispatcherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class SubscriptionService {
     private final PlanRepository planRepository;
     private final CustomerRepository customerRepository;
     private final com.mealsbowls.payment.PaymentService paymentService;
-    private final WhatsAppNotificationService notificationService;
+    private final NotificationDispatcherService notificationService;
     private final com.mealsbowls.common.SequenceGeneratorService sequenceGeneratorService;
 
     public List<Plan> getAllPlans() {

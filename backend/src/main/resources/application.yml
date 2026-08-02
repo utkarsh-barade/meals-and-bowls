@@ -28,6 +28,10 @@ app:
   whatsapp:
     test-number: ${WHATSAPP_TEST_NUMBER:}
 
+  notification:
+    provider: ${NOTIFICATION_PROVIDER:WHATSAPP}
+    fast2sms-api-key: ${FAST2SMS_API_KEY:}
+
 logging:
   level:
     com.mealsbowls: DEBUG
