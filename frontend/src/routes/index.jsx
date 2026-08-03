@@ -6,9 +6,6 @@ import ProtectedRoute from './ProtectedRoute';
 import AdminLayout    from '@/components/layout/AdminLayout';
 import CustomerLayout from '@/components/layout/CustomerLayout';
 
-// Landing page
-import LandingPage from '@/pages/landing/LandingPage';
-
 // Auth pages
 import AdminLogin from '@/pages/admin/auth/AdminLogin';
 import CustomerLogin from '@/pages/customer/auth/CustomerLogin';
@@ -33,10 +30,10 @@ import CustomerMealHistory from '@/pages/customer/meal-history/CustomerMealHisto
 import Profile from '@/pages/customer/profile/Profile';
 
 const router = createBrowserRouter([
-  // ── Landing page (PUBLIC) ───────────────────────────────
+  // ── Root redirect to login ──────────────────────────────────
   {
     path: '/',
-    element: <LandingPage />,
+    element: <Navigate to="/login" replace />,
   },
 
   // ── Public auth routes ───────────────────────────────────
