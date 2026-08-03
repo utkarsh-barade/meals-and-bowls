@@ -128,20 +128,7 @@ export default function Customers() {
                     customers.map((customer) => (
                       <Table.Row key={customer.id}>
                         <Table.Cell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            {customer.photoUrl ? (
-                              <img 
-                                src={customer.photoUrl.startsWith('http') || customer.photoUrl.startsWith('blob:') ? customer.photoUrl : `${import.meta.env.VITE_API_BASE_URL || ''}${customer.photoUrl}`} 
-                                alt={customer.fullName} 
-                                className="w-8 h-8 rounded-full object-cover bg-surface-muted" 
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-                                {customer.fullName.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            {customer.fullName}
-                          </div>
+                          {customer.fullName}
                         </Table.Cell>
                         <Table.Cell>{customer.mobileNumber}</Table.Cell>
                         <Table.Cell>{formatDate(customer.createdAt)}</Table.Cell>

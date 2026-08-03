@@ -58,18 +58,9 @@ function CustomerMealRow({ customer, searchTerm }) {
 
   return (
     <div className="flex items-center justify-between p-4 border border-surface-border rounded-lg mb-4 hover:border-primary/50 transition-colors">
-      <div className="flex items-center gap-4">
-        {customer.photoUrl ? (
-          <img src={customer.photoUrl} alt="profile" className="w-12 h-12 rounded-full object-cover" />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-            {customer.fullName.charAt(0)}
-          </div>
-        )}
-        <div>
-          <h3 className="font-semibold text-text-primary">{customer.fullName}</h3>
-          <p className="text-small text-text-secondary">{customer.mobileNumber}</p>
-        </div>
+      <div>
+        <h3 className="font-semibold text-text-primary">{customer.fullName}</h3>
+        <p className="text-small text-text-secondary">{customer.mobileNumber}</p>
       </div>
 
       {!customer.hasActiveSubscription ? (
