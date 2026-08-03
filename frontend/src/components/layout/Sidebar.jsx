@@ -96,7 +96,7 @@ export default function Sidebar({ role = 'ADMIN' }) {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 scrollbar-thin">
           <ul className="space-y-1">
-            {navItems.map(({ label, href, icon: Icon }) => (
+            {navItems.map(({ label, href, icon: Icon, statusKey }) => (
               <li key={href}>
                 <NavLink
                   to={href}
