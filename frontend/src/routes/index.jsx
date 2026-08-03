@@ -3,8 +3,11 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 
 // Layouts
-import AdminLayout from '@/components/layout/AdminLayout';
+import AdminLayout    from '@/components/layout/AdminLayout';
 import CustomerLayout from '@/components/layout/CustomerLayout';
+
+// Landing page
+import LandingPage from '@/pages/landing/LandingPage';
 
 // Auth pages
 import AdminLogin from '@/pages/admin/auth/AdminLogin';
@@ -22,6 +25,7 @@ import MealManagement from '@/pages/admin/meal-management/MealManagement';
 import MealHistory from '@/pages/admin/meal-history/MealHistory';
 import Payments from '@/pages/admin/payments/Payments';
 import Reports from '@/pages/admin/reports/Reports';
+import WhatsAppStatus from '@/pages/admin/whatsapp/WhatsAppStatus';
 
 // Customer pages
 import CustomerDashboard from '@/pages/customer/dashboard/CustomerDashboard';
@@ -29,10 +33,10 @@ import CustomerMealHistory from '@/pages/customer/meal-history/CustomerMealHisto
 import Profile from '@/pages/customer/profile/Profile';
 
 const router = createBrowserRouter([
-  // ── Root redirect ────────────────────────────────────────
+  // ── Landing page (PUBLIC) ───────────────────────────────
   {
     path: '/',
-    element: <Navigate to="/login" replace />,
+    element: <LandingPage />,
   },
 
   // ── Public auth routes ───────────────────────────────────
@@ -69,6 +73,7 @@ const router = createBrowserRouter([
       { path: 'meal-history',    element: <MealHistory /> },
       { path: 'payments',        element: <Payments /> },
       { path: 'reports',         element: <Reports /> },
+      { path: 'whatsapp',        element: <WhatsAppStatus /> },
     ],
   },
 

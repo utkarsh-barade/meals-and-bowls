@@ -15,50 +15,85 @@ public class NotificationDispatcherService {
 
     private final WhatsAppNotificationService whatsAppNotificationService;
     private final FastSmsNotificationService fastSmsNotificationService;
+    private final WhatsAppGatewayService whatsAppGatewayService;
 
-    @Value("${app.notification.provider:${NOTIFICATION_PROVIDER:WHATSAPP}}")
+    @Value("${app.notification.provider:${NOTIFICATION_PROVIDER:WHATSAPP_GATEWAY}}")
     private String notificationProvider;
 
     public NotificationDispatcherService(WhatsAppNotificationService whatsAppNotificationService,
-                                         FastSmsNotificationService fastSmsNotificationService) {
+                                         FastSmsNotificationService fastSmsNotificationService,
+                                         WhatsAppGatewayService whatsAppGatewayService) {
         this.whatsAppNotificationService = whatsAppNotificationService;
         this.fastSmsNotificationService = fastSmsNotificationService;
+        this.whatsAppGatewayService = whatsAppGatewayService;
     }
 
     @Async
     public CompletableFuture<Void> sendNotification(String toPhoneNumber, String message) {
-        String provider = notificationProvider != null ? notificationProvider.trim().toUpperCase() : "WHATSAPP";
+        String provider = notificationProvider != null ? notificationProvider.trim().toUpperCase() : "WHATSAPP_GATEWAY";
 
-        if ("SMS".equalsIgnoreCase(provider)) {
-            log.info("Sending notification via SMS provider to {}", toPhoneNumber);
-            fastSmsNotificationService.sendSms(toPhoneNumber, message);
-        } else if ("BOTH".equalsIgnoreCase(provider)) {
-            log.info("Sending notification via BOTH WhatsApp and SMS to {}", toPhoneNumber);
-            whatsAppNotificationService.sendNotification(toPhoneNumber, message);
-            fastSmsNotificationService.sendSms(toPhoneNumber, message);
-        } else if ("NONE".equalsIgnoreCase(provider) || "OFF".equalsIgnoreCase(provider)) {
-            log.info("Notifications are turned OFF. Skipping notification to {}", toPhoneNumber);
-        } else {
-            // Default to WHATSAPP
-            log.info("Sending notification via WhatsApp provider to {}", toPhoneNumber);
-            whatsAppNotificationService.sendNotification(toPhoneNumber, message);
+        switch (provider) {
+            case "WHATSAPP_GATEWAY" -> {
+                log.info("[Dispatcher] Sending via WhatsApp Gateway to {}", toPhoneNumber);
+                sendViaGatewayWithSmsFallback(toPhoneNumber, message);
+            }
+            case "SMS" -> {
+                log.info("[Dispatcher] Sending via SMS to {}", toPhoneNumber);
+                fastSmsNotificationService.sendSms(toPhoneNumber, message);
+            }
+            case "WHATSAPP" -> {
+                log.info("[Dispatcher] Sending via Meta WhatsApp API to {}", toPhoneNumber);
+                whatsAppNotificationService.sendNotification(toPhoneNumber, message);
+            }
+            case "BOTH" -> {
+                log.info("[Dispatcher] Sending via BOTH WhatsApp API and SMS to {}", toPhoneNumber);
+                whatsAppNotificationService.sendNotification(toPhoneNumber, message);
+                fastSmsNotificationService.sendSms(toPhoneNumber, message);
+            }
+            case "NONE", "OFF" -> log.info("[Dispatcher] Notifications OFF. Skipping for {}", toPhoneNumber);
+            default -> {
+                log.warn("[Dispatcher] Unknown provider '{}'. Defaulting to WhatsApp Gateway.", provider);
+                sendViaGatewayWithSmsFallback(toPhoneNumber, message);
+            }
         }
 
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Primary: WhatsApp Gateway (Free, QR-based).
+     * If QUEUED or ERROR from gateway AND SMS key is configured → send SMS fallback immediately.
+     */
+    private void sendViaGatewayWithSmsFallback(String toPhoneNumber, String message) {
+        CompletableFuture<String> gatewayResult = whatsAppGatewayService.sendMessage(toPhoneNumber, message);
+        gatewayResult.thenAccept(status -> {
+            if ("ERROR".equals(status) || "NOT_CONFIGURED".equals(status)) {
+                log.warn("[Dispatcher] Gateway returned {}. Triggering SMS fallback to {}", status, toPhoneNumber);
+                fastSmsNotificationService.sendSms(toPhoneNumber, message);
+            } else if ("QUEUED".equals(status)) {
+                log.info("[Dispatcher] Message queued in gateway for {}. SMS fallback triggered for instant delivery.", toPhoneNumber);
+                fastSmsNotificationService.sendSms(toPhoneNumber, message);
+            }
+            // "SENT" = WhatsApp delivered successfully, no fallback needed
+        });
+    }
+
     public Map<String, Object> testNotificationSync(String toPhoneNumber) {
         Map<String, Object> result = new HashMap<>();
-        String provider = notificationProvider != null ? notificationProvider.trim().toUpperCase() : "WHATSAPP";
+        String provider = notificationProvider != null ? notificationProvider.trim().toUpperCase() : "WHATSAPP_GATEWAY";
         result.put("activeProviderConfig", provider);
 
-        if ("SMS".equalsIgnoreCase(provider)) {
-            result.put("smsTest", fastSmsNotificationService.sendSmsSync(toPhoneNumber, "Test SMS Notification from Meals & Bowls"));
-        } else if ("BOTH".equalsIgnoreCase(provider)) {
-            result.put("whatsAppTest", whatsAppNotificationService.testNotificationSync(toPhoneNumber));
-            result.put("smsTest", fastSmsNotificationService.sendSmsSync(toPhoneNumber, "Test SMS Notification from Meals & Bowls"));
-        } else {
-            result.put("whatsAppTest", whatsAppNotificationService.testNotificationSync(toPhoneNumber));
+        switch (provider) {
+            case "WHATSAPP_GATEWAY" -> {
+                result.put("gatewayStatus", whatsAppGatewayService.getStatus());
+                result.put("smsTest", fastSmsNotificationService.sendSmsSync(toPhoneNumber, "Test Notification from Meals and Bowls"));
+            }
+            case "SMS" -> result.put("smsTest", fastSmsNotificationService.sendSmsSync(toPhoneNumber, "Test SMS from Meals and Bowls"));
+            case "BOTH" -> {
+                result.put("whatsAppTest", whatsAppNotificationService.testNotificationSync(toPhoneNumber));
+                result.put("smsTest", fastSmsNotificationService.sendSmsSync(toPhoneNumber, "Test SMS from Meals and Bowls"));
+            }
+            default -> result.put("whatsAppTest", whatsAppNotificationService.testNotificationSync(toPhoneNumber));
         }
 
         return result;

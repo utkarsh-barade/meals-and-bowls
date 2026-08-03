@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from '@/services/axios';
 import { cn } from '@/utils/cn';
 import {
   LayoutDashboard,
@@ -12,6 +14,7 @@ import {
   Utensils,
   Menu,
   X,
+  MessageSquare,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -22,6 +25,7 @@ const adminNavItems = [
   { label: 'Meal History',         href: '/admin/meal-history',     icon: ClipboardList },
   { label: 'Payments',             href: '/admin/payments',         icon: CreditCard },
   { label: 'Reports',              href: '/admin/reports',          icon: BarChart3 },
+  { label: 'WhatsApp',             href: '/admin/whatsapp',         icon: MessageSquare, statusKey: true },
 ];
 
 const customerNavItems = [
@@ -36,6 +40,16 @@ const customerNavItems = [
 export default function Sidebar({ role = 'ADMIN' }) {
   const navItems = role === 'ADMIN' ? adminNavItems : customerNavItems;
   const [open, setOpen] = useState(false);
+
+  // Poll WA gateway status for the live status dot in sidebar
+  const { data: waData } = useQuery({
+    queryKey: ['wa-gateway-status'],
+    queryFn: () => axios.get('/api/admin/whatsapp/status'),
+    refetchInterval: 15000,
+    enabled: role === 'ADMIN',
+    retry: false,
+  });
+  const waConnected = waData?.data?.data?.connected === true;
 
   return (
     <>
@@ -100,7 +114,16 @@ export default function Sidebar({ role = 'ADMIN' }) {
                   }
                 >
                   <Icon size={18} className="flex-shrink-0" />
-                  <span>{label}</span>
+                  <span className="flex-1">{label}</span>
+                  {statusKey && (
+                    <span
+                      className={cn(
+                        'w-2 h-2 rounded-full flex-shrink-0',
+                        waConnected ? 'bg-success' : 'bg-danger'
+                      )}
+                      title={waConnected ? 'WhatsApp Connected' : 'WhatsApp Disconnected'}
+                    />
+                  )}
                 </NavLink>
               </li>
             ))}

@@ -26,6 +26,9 @@ app:
     test-number: ${WHATSAPP_TEST_NUMBER:}
 
   notification:
-    provider: ${NOTIFICATION_PROVIDER:WHATSAPP}
+    provider: ${NOTIFICATION_PROVIDER:WHATSAPP_GATEWAY}
     fast2sms-api-key: ${FAST2SMS_API_KEY:}
 
+  wa-gateway:
+    url: ${WA_GATEWAY_URL:}
+    api-key: ${WA_GATEWAY_API_KEY:meals-bowls-secret}
