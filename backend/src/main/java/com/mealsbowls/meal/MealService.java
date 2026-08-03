@@ -126,7 +126,7 @@ public class MealService {
         String timeStr = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a"));
         String mealTypeStr = type.toString().substring(0, 1).toUpperCase() + type.toString().substring(1).toLowerCase();
 
-        String msg = "🍽️ Meals & Bowls\n\n" +
+        String msg = "Meals & Bowls\n\n" +
                      "Hello " + customer.getFullName() + ",\n\n" +
                      "Your " + mealTypeStr + " has been served successfully.\n\n" +
                      "Date: " + date + "\n" +
@@ -139,7 +139,7 @@ public class MealService {
 
         // Low balance alert — <= 3 meals remaining
         if (activeSub.getMealsRemaining() <= 3 && activeSub.getMealsRemaining() > 0) {
-            String lowBalanceMsg = "⚠️ Meals & Bowls\n\n" +
+            String lowBalanceMsg = "[ALERT] Meals & Bowls\n\n" +
                                    "Hello " + customer.getFullName() + ",\n\n" +
                                    "You have only " + activeSub.getMealsRemaining() + " meals remaining.\n\n" +
                                    "Please renew your subscription before your meals are exhausted.\n\n" +
@@ -198,7 +198,7 @@ public class MealService {
         mealAuditLogRepository.save(log);
 
         String mealTypeStr = type.toString().substring(0, 1).toUpperCase() + type.toString().substring(1).toLowerCase();
-        String correctionMsg = "🍽️ Meals & Bowls\n\n" +
+        String correctionMsg = "Meals & Bowls\n\n" +
                      "Hello " + customer.getFullName() + ",\n\n" +
                      "Your meal record has been updated by the administrator.\n\n" +
                      "Meal: " + mealTypeStr + "\n" +
