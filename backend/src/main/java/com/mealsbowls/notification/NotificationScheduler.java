@@ -32,7 +32,7 @@ public class NotificationScheduler {
         for (Subscription sub : activeSubscriptions) {
             if (sub.getStatus() == SubscriptionStatus.ACTIVE && tomorrow.equals(sub.getExpiryDate())) {
                 customerRepository.findById(sub.getCustomerId()).ifPresent(customer -> {
-                    String msg = "Meals & Bowls\n\n" +
+                    String msg = "⏰ Meals & Bowls\n\n" +
                                  "Hello " + customer.getFullName() + ",\n\n" +
                                  "Your subscription will expire on " + sub.getExpiryDate() + ".\n\n" +
                                  "Remaining Meals: " + sub.getMealsRemaining() + "\n\n" +
