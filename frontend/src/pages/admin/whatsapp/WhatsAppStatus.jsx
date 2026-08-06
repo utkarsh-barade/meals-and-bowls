@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/services/axios';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { CheckCircle, XCircle, RefreshCw, Send, Wifi } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, Send, Wifi, QrCode } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const whatsappService = {
   getStatus: () => axios.get('/api/admin/whatsapp/status'),
   flushQueue: () => axios.post('/api/admin/whatsapp/flush-queue'),
+  reconnect: () => axios.post('/api/admin/whatsapp/reconnect'),
 };
 
 export default function WhatsAppStatus() {
@@ -16,13 +18,30 @@ export default function WhatsAppStatus() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['wa-gateway-status'],
     queryFn: whatsappService.getStatus,
-    refetchInterval: 8000, // Poll every 8 seconds
+    refetchInterval: 5000, // Poll every 5 seconds for smooth QR updates
   });
 
   const { mutate: flushQueue, isPending: isFlushing } = useMutation({
     mutationFn: whatsappService.flushQueue,
     onSuccess: () => {
+      toast.success('Queued messages sent!');
       queryClient.invalidateQueries({ queryKey: ['wa-gateway-status'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to flush queue: ' + (err.response?.data?.message || err.message));
+    },
+  });
+
+  const { mutate: triggerReconnect, isPending: isReconnecting } = useMutation({
+    mutationFn: whatsappService.reconnect,
+    onSuccess: () => {
+      toast.success('Generating fresh QR Code... Please wait 2 seconds.');
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['wa-gateway-status'] });
+      }, 2500);
+    },
+    onError: (err) => {
+      toast.error('Reconnect failed: ' + (err.response?.data?.message || err.message));
     },
   });
 
@@ -37,15 +56,28 @@ export default function WhatsAppStatus() {
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-page-title text-text-primary">WhatsApp Status</h1>
-        <Button
-          variant="secondary"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['wa-gateway-status'] })}
-          disabled={isFetching}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {!connected && configured && (
+            <Button
+              variant="outline"
+              onClick={() => triggerReconnect()}
+              disabled={isReconnecting}
+              className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5"
+            >
+              <QrCode className={`w-4 h-4 ${isReconnecting ? 'animate-spin' : ''}`} />
+              {isReconnecting ? 'Resetting...' : 'Generate New QR'}
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['wa-gateway-status'] })}
+            disabled={isFetching}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Connection Status Card */}
@@ -90,41 +122,54 @@ export default function WhatsAppStatus() {
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-4 bg-danger/10 border border-danger/30 rounded-lg">
                 <XCircle className="w-5 h-5 text-danger mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-danger">WhatsApp Disconnected</p>
-                  <p className="text-small text-text-secondary mt-0.5">
-                    Scan the QR code below with your WhatsApp Business app to connect.
-                    {queueLength > 0 && (
-                      <span className="ml-1 font-medium text-warning">
-                        ({queueLength} message{queueLength > 1 ? 's' : ''} pending in queue)
-                      </span>
+                <div className="flex-1 flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-danger">WhatsApp Disconnected</p>
+                    <p className="text-small text-text-secondary mt-0.5">
+                      Scan the QR code below with your WhatsApp Business app to connect.
+                      {queueLength > 0 && (
+                        <span className="ml-1 font-medium text-warning">
+                          ({queueLength} message{queueLength > 1 ? 's' : ''} pending in queue)
+                        </span>
+                      )}
+                    </p>
+                    {error && (
+                      <p className="text-caption text-danger/70 mt-1 font-mono">{error}</p>
                     )}
-                  </p>
-                  {error && (
-                    <p className="text-caption text-danger/70 mt-1 font-mono">{error}</p>
-                  )}
+                  </div>
                 </div>
               </div>
 
-              {/* QR Code */}
+              {/* QR Code Display or Reset button */}
               {qrCode ? (
                 <div className="flex flex-col items-center gap-3 py-4">
-                  <p className="text-small text-text-secondary font-medium">
+                  <p className="text-small text-text-secondary font-medium text-center">
                     Open WhatsApp &rarr; Linked Devices &rarr; Link a Device &rarr; Scan this QR
                   </p>
-                  <div className="p-3 bg-white border-2 border-primary/20 rounded-xl shadow-sm">
+                  <div className="p-3 bg-white border-2 border-primary/30 rounded-xl shadow-md">
                     <img
                       src={qrCode}
                       alt="WhatsApp QR Code"
-                      className="w-56 h-56"
+                      className="w-60 h-60"
                     />
                   </div>
-                  <p className="text-caption text-text-secondary">QR refreshes every 8 seconds automatically</p>
+                  <p className="text-caption text-text-secondary">QR refreshes automatically every 5 seconds</p>
                 </div>
               ) : (
-                <div className="py-6 text-center text-text-secondary">
-                  <p className="text-small">Waiting for QR code from gateway...</p>
-                  <p className="text-caption mt-1">Make sure the wa-gateway service is running on Railway/Render.</p>
+                <div className="py-8 flex flex-col items-center text-center gap-3">
+                  <p className="text-small font-medium text-text-primary">Waiting for QR code from gateway...</p>
+                  <p className="text-caption text-text-secondary max-w-sm">
+                    If session is stuck or QR is taking too long, click the button below to clear session and force generate a new QR Code instantly.
+                  </p>
+                  <Button
+                    variant="primary"
+                    onClick={() => triggerReconnect()}
+                    disabled={isReconnecting}
+                    className="flex items-center gap-2 mt-1"
+                  >
+                    <QrCode className={`w-4 h-4 ${isReconnecting ? 'animate-spin' : ''}`} />
+                    {isReconnecting ? 'Generating Fresh QR...' : 'Generate Fresh QR Code'}
+                  </Button>
                 </div>
               )}
             </div>

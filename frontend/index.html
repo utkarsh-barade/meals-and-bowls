@@ -1,14 +1,66 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Meals & Bowls - Mess Management System for subscription-based thali plans." />
-    <title>Meals &amp; Bowls</title>
-    <!-- Google Fonts preconnect for Inter -->
+    <meta name="theme-color" content="#F97316" />
+
+    <!-- SEO Meta Tags -->
+    <title>Meals &amp; Bowls | Fresh Home-Style Meal Subscriptions Delivered Daily</title>
+    <meta name="description" content="Subscribe to fresh, hygienic, home-style thali meals delivered daily to your doorstep. Flexible monthly plans, WhatsApp meal updates, leave management, and zero cooking hassle." />
+    <meta name="keywords" content="tiffin service, meal subscription, home style food, daily thali delivery, hygienic food subscription, meals and bowls" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://mealsandbowls.com/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://mealsandbowls.com/" />
+    <meta property="og:title" content="Meals &amp; Bowls | Fresh Home-Style Meal Subscriptions" />
+    <meta property="og:description" content="Fresh, hygienic, home-style meals delivered to your doorstep daily. Subscribe today with flexible plans and easy WhatsApp tracking." />
+    <meta property="og:image" content="https://mealsandbowls.com/og-image.jpg" />
+    <meta property="og:site_name" content="Meals &amp; Bowls" />
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://mealsandbowls.com/" />
+    <meta name="twitter:title" content="Meals &amp; Bowls | Fresh Home-Style Meal Subscriptions" />
+    <meta name="twitter:description" content="Fresh, hygienic, home-style meals delivered to your doorstep daily. Flexible monthly plans and WhatsApp tracking." />
+    <meta name="twitter:image" content="https://mealsandbowls.com/og-image.jpg" />
+
+    <!-- Google Fonts Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Structured Data (JSON-LD) for LocalBusiness / FoodEstablishment -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FoodEstablishment",
+        "name": "Meals & Bowls",
+        "image": "https://mealsandbowls.com/og-image.jpg",
+        "@id": "https://mealsandbowls.com/#organization",
+        "url": "https://mealsandbowls.com/",
+        "telephone": "+917049592280",
+        "email": "mealsbowls@gmail.com",
+        "priceRange": "₹₹",
+        "servesCuisine": "Indian",
+        "description": "Subscription-based home-style meal and tiffin service delivering fresh, hygienic thalis daily.",
+        "address": {
+          "@type": "PostalAddress",
+          "addressCountry": "IN"
+        },
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+            "opens": "12:00",
+            "closes": "21:00"
+          }
+        ],
+        "hasMenu": "https://mealsandbowls.com/#plans"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

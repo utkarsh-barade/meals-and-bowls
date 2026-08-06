@@ -155,4 +155,30 @@ public class WhatsAppGatewayService {
         }
         return result;
     }
+
+    /**
+     * Proxy for /reconnect endpoint (clears stale session and generates new QR code).
+     */
+    public Map<String, Object> reconnect() {
+        Map<String, Object> result = new HashMap<>();
+        if (gatewayUrl == null || gatewayUrl.isBlank()) {
+            result.put("error", "WA_GATEWAY_URL is not set");
+            return result;
+        }
+
+        try {
+            String url = gatewayUrl.stripTrailing() + "/reconnect";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-key", apiKey.trim());
+            HttpEntity<Void> request = new HttpEntity<>(headers);
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, request, Map.class);
+            if (response.getBody() != null) {
+                result.putAll(response.getBody());
+            }
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
 }

@@ -41,4 +41,18 @@ public class WhatsAppGatewayController {
                 .data(result)
                 .build());
     }
+
+    /**
+     * POST /api/admin/whatsapp/reconnect
+     * Clears session and generates a fresh QR Code immediately.
+     */
+    @PostMapping("/reconnect")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reconnect() {
+        Map<String, Object> result = whatsAppGatewayService.reconnect();
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .success(true)
+                .message("Fresh QR code request triggered")
+                .data(result)
+                .build());
+    }
 }

@@ -38,64 +38,84 @@ function requireApiKey(req, res, next) {
   next();
 }
 
+function clearAuthFolder() {
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      console.log('[WA-Gateway] Cleared stale auth_info session directory.');
+    }
+  } catch (err) {
+    console.error('[WA-Gateway] Error clearing auth_info:', err.message);
+  }
+}
+
 // ─── WhatsApp Connection ──────────────────────────────────────────────────────
 async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version } = await fetchLatestBaileysVersion();
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { version } = await fetchLatestBaileysVersion();
 
-  sock = makeWASocket({
-    version,
-    logger,
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, logger),
-    },
-    printQRInTerminal: true,
-    browser: ['Meals & Bowls', 'Chrome', '1.0.0'],
-    generateHighQualityLinkPreview: false,
-  });
+    sock = makeWASocket({
+      version,
+      logger,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, logger),
+      },
+      browser: ['Meals & Bowls', 'Chrome', '1.0.0'],
+      generateHighQualityLinkPreview: false,
+    });
 
-  // QR Code Event
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
+    // QR Code Event
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      console.log('[WA-Gateway] New QR code generated. Scan with WhatsApp app.');
-      currentQrBase64 = await QRCode.toDataURL(qr);
-      isConnected = false;
-    }
-
-    if (connection === 'close') {
-      isConnected = false;
-      currentQrBase64 = null;
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('[WA-Gateway] Connection closed. Reconnecting:', shouldReconnect);
-      if (shouldReconnect) {
-        setTimeout(() => connectToWhatsApp(), 3000);
-      } else {
-        console.log('[WA-Gateway] Logged out. Please delete auth_info folder and restart.');
-        // Clear auth on logout
-        if (fs.existsSync(AUTH_DIR)) {
-          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      if (qr) {
+        console.log('[WA-Gateway] New QR code generated.');
+        try {
+          currentQrBase64 = await QRCode.toDataURL(qr);
+          isConnected = false;
+        } catch (err) {
+          console.error('[WA-Gateway] QRCode generation error:', err.message);
         }
       }
-    }
 
-    if (connection === 'open') {
-      isConnected = true;
-      currentQrBase64 = null;
-      console.log('[WA-Gateway] WhatsApp connected successfully!');
+      if (connection === 'close') {
+        isConnected = false;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401 && statusCode !== 403;
 
-      // Flush queued messages
-      if (messageQueue.length > 0) {
-        console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
-        await flushQueue();
+        console.log(`[WA-Gateway] Connection closed (status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
+
+        if (shouldReconnect) {
+          setTimeout(() => connectToWhatsApp(), 3000);
+        } else {
+          console.log('[WA-Gateway] Logged out or session invalid. Clearing auth and restarting QR.');
+          clearAuthFolder();
+          currentQrBase64 = null;
+          setTimeout(() => connectToWhatsApp(), 2000);
+        }
       }
-    }
-  });
 
-  sock.ev.on('creds.update', saveCreds);
+      if (connection === 'open') {
+        isConnected = true;
+        currentQrBase64 = null;
+        console.log('[WA-Gateway] WhatsApp connected successfully!');
+
+        // Flush queued messages
+        if (messageQueue.length > 0) {
+          console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
+          await flushQueue();
+        }
+      }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+  } catch (err) {
+    console.error('[WA-Gateway] Socket initialization error:', err.message);
+    clearAuthFolder();
+    setTimeout(() => connectToWhatsApp(), 4000);
+  }
 }
 
 // ─── Queue Flush ──────────────────────────────────────────────────────────────
@@ -116,6 +136,7 @@ async function flushQueue() {
 
 // ─── Core Send ────────────────────────────────────────────────────────────────
 async function sendWhatsApp(toPhone, message) {
+  if (!sock) throw new Error('WhatsApp socket not initialized');
   let num = toPhone.replace(/[^0-9]/g, '');
   if (num.length === 10) num = '91' + num;
   const jid = num + '@s.whatsapp.net';
@@ -124,7 +145,7 @@ async function sendWhatsApp(toPhone, message) {
 
 // ─── REST API ─────────────────────────────────────────────────────────────────
 
-// GET /status  — Returns connection status + QR code if disconnected
+// GET /status — Returns connection status + QR code if disconnected
 app.get('/status', requireApiKey, (req, res) => {
   res.json({
     connected: isConnected,
@@ -133,12 +154,12 @@ app.get('/status', requireApiKey, (req, res) => {
   });
 });
 
-// GET /health  — Public health check (no API key needed)
+// GET /health — Public health check (no API key needed)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', connected: isConnected });
 });
 
-// POST /send  — Send a WhatsApp message or queue it
+// POST /send — Send a WhatsApp message or queue it
 app.post('/send', requireApiKey, async (req, res) => {
   const { to, message } = req.body;
   if (!to || !message) {
@@ -172,12 +193,12 @@ app.post('/send', requireApiKey, async (req, res) => {
   }
 });
 
-// GET /queue  — View queued messages
+// GET /queue — View queued messages
 app.get('/queue', requireApiKey, (req, res) => {
   res.json({ queueLength: messageQueue.length, queue: messageQueue });
 });
 
-// POST /flush-queue  — Manually trigger queue flush (after reconnect)
+// POST /flush-queue — Manually trigger queue flush (after reconnect)
 app.post('/flush-queue', requireApiKey, async (req, res) => {
   if (!isConnected) {
     return res.status(400).json({ error: 'WhatsApp is not connected. Cannot flush queue.' });
@@ -187,12 +208,31 @@ app.post('/flush-queue', requireApiKey, async (req, res) => {
   res.json({ status: 'FLUSHED', messagesFlushed: count });
 });
 
-// POST /logout  — Log out and clear session (Admin use only)
+// POST /reconnect — Clear session and generate fresh QR Code immediately
+app.post('/reconnect', requireApiKey, async (req, res) => {
+  try {
+    if (sock) {
+      try { await sock.logout(); } catch (_) {}
+      try { sock.end(); } catch (_) {}
+    }
+  } catch (_) {}
+
+  isConnected = false;
+  currentQrBase64 = null;
+  clearAuthFolder();
+
+  setTimeout(() => connectToWhatsApp(), 1000);
+  res.json({ status: 'RECONNECTING', message: 'Session cleared. Fresh QR code is being generated...' });
+});
+
+// POST /logout — Log out and clear session (Admin use only)
 app.post('/logout', requireApiKey, async (req, res) => {
   try {
     if (sock) await sock.logout();
   } catch (_) {}
   isConnected = false;
+  currentQrBase64 = null;
+  clearAuthFolder();
   res.json({ status: 'LOGGED_OUT' });
 });
 

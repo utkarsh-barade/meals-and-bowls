@@ -1,0 +1,17 @@
+# Target build directories
+**/target/
+**/dist/
+
+# Node modules
+**/node_modules/
+
+# WhatsApp session data
+**/auth_info/
+
+# Environment files
+**/.env
+**/.env.local
+
+# Zip files & docs
+*.zip
+landing_doc/
