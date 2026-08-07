@@ -9,3 +9,4 @@ Welcome to the official documentation for **Meals & Bowls**. Below are detailed 
 - 🍱 **[05. Admin & Customer Features](./05-ADMIN-AND-CUSTOMER-FEATURES.md)** — Full list of features, subscription plans & 7 thali specs.
 - 🔌 **[06. API Endpoint Reference](./06-API-REFERENCE.md)** — REST API documentation.
 - 🛠️ **[07. Troubleshooting & FAQs](./07-TROUBLESHOOTING-AND-FAQS.md)** — Solutions for sleep mode, QR scan, CORS & auth issues.
+- 🛠️ **[08. Future Maintenance Guide](./08-PROJECT-MAINTENANCE-GUIDE.md)** — How to update code, change plans, backup DB, and maintain system.
