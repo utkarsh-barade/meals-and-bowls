@@ -16,7 +16,7 @@ public class PublicTestController {
     private final NotificationDispatcherService notificationService;
     private final WhatsAppNotificationService whatsAppNotificationService;
 
-    @GetMapping("/health")
+    @RequestMapping(value = "/health", method = {RequestMethod.GET, RequestMethod.HEAD})
     public ResponseEntity<Map<String, Object>> healthCheck() {
         return ResponseEntity.ok(Map.of(
             "status", "UP",
