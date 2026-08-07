@@ -18,7 +18,7 @@ export default function WhatsAppStatus() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['wa-gateway-status'],
     queryFn: whatsappService.getStatus,
-    refetchInterval: 5000, // Poll every 5 seconds for smooth QR updates
+    refetchInterval: 10000, // Poll every 10 seconds gently
   });
 
   const { mutate: flushQueue, isPending: isFlushing } = useMutation({
@@ -153,7 +153,7 @@ export default function WhatsAppStatus() {
                       className="w-60 h-60"
                     />
                   </div>
-                  <p className="text-caption text-text-secondary">QR refreshes automatically every 5 seconds</p>
+                  <p className="text-caption text-text-secondary">QR code remains active for 45 seconds for comfortable scanning</p>
                 </div>
               ) : (
                 <div className="py-8 flex flex-col items-center text-center gap-3">

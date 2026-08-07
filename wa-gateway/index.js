@@ -64,6 +64,9 @@ async function connectToWhatsApp() {
       },
       browser: ['Meals & Bowls', 'Chrome', '1.0.0'],
       generateHighQualityLinkPreview: false,
+      qrTimeout: 45000,              // Keep QR valid for 45 seconds
+      connectTimeoutMs: 60000,       // 60s socket connect timeout
+      defaultQueryTimeoutMs: 60000,
     });
 
     // QR Code Event
