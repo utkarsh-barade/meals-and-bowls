@@ -7,6 +7,7 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  Browsers,
 } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const pino = require('pino');
@@ -62,7 +63,9 @@ async function connectToWhatsApp() {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger),
       },
-      browser: ['Meals & Bowls', 'Chrome', '1.0.0'],
+      browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: false,
+      markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
       qrTimeout: 45000,              // Keep QR valid for 45 seconds
       connectTimeoutMs: 60000,       // 60s socket connect timeout
