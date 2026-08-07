@@ -6,7 +6,6 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
   Browsers,
 } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
@@ -54,30 +53,36 @@ function clearAuthFolder() {
 async function connectToWhatsApp() {
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-    const { version } = await fetchLatestBaileysVersion();
+    const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
+      version: [2, 3000, 1015901307],
+      isLatest: false,
+    }));
+
+    console.log(`[WA-Gateway] Initializing socket with WA version: ${version.join('.')} (isLatest: ${isLatest})`);
 
     sock = makeWASocket({
       version,
       logger,
-      auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, logger),
-      },
-      browser: Browsers.ubuntu('Chrome'),
+      auth: state,
+      browser: ['Mac OS', 'Chrome', '124.0.0'],
       syncFullHistory: false,
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
-      qrTimeout: 45000,              // Keep QR valid for 45 seconds
-      connectTimeoutMs: 60000,       // 60s socket connect timeout
+      qrTimeout: 45000,
+      connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
+      getMessage: async () => ({ conversation: 'Hello' }),
     });
 
-    // QR Code Event
+    // Save credentials whenever updated
+    sock.ev.on('creds.update', saveCreds);
+
+    // QR Code & Connection Status Event
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        console.log('[WA-Gateway] New QR code generated.');
+        console.log('[WA-Gateway] New QR code generated successfully.');
         try {
           currentQrBase64 = await QRCode.toDataURL(qr);
           isConnected = false;
@@ -89,14 +94,15 @@ async function connectToWhatsApp() {
       if (connection === 'close') {
         isConnected = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const reason = lastDisconnect?.error?.message || 'unknown';
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401 && statusCode !== 403;
 
-        console.log(`[WA-Gateway] Connection closed (status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
+        console.log(`[WA-Gateway] Connection closed. Status: ${statusCode}, Reason: ${reason}. Reconnecting: ${shouldReconnect}`);
 
         if (shouldReconnect) {
           setTimeout(() => connectToWhatsApp(), 3000);
         } else {
-          console.log('[WA-Gateway] Logged out or session invalid. Clearing auth and restarting QR.');
+          console.log('[WA-Gateway] Logged out or invalid session. Resetting auth_info folder...');
           clearAuthFolder();
           currentQrBase64 = null;
           setTimeout(() => connectToWhatsApp(), 2000);
@@ -116,7 +122,6 @@ async function connectToWhatsApp() {
       }
     });
 
-    sock.ev.on('creds.update', saveCreds);
   } catch (err) {
     console.error('[WA-Gateway] Socket initialization error:', err.message);
     clearAuthFolder();
