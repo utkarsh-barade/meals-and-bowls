@@ -9,20 +9,29 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/public/test")
+@RequestMapping("/api/public")
 @RequiredArgsConstructor
 public class PublicTestController {
 
     private final NotificationDispatcherService notificationService;
     private final WhatsAppNotificationService whatsAppNotificationService;
 
-    @GetMapping("/notification")
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> healthCheck() {
+        return ResponseEntity.ok(Map.of(
+            "status", "UP",
+            "service", "meals-bowls-api",
+            "timestamp", System.currentTimeMillis()
+        ));
+    }
+
+    @GetMapping("/test/notification")
     public ResponseEntity<Map<String, Object>> testNotification(@RequestParam(defaultValue = "9999999999") String phone) {
         Map<String, Object> response = notificationService.testNotificationSync(phone);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/meta-info")
+    @GetMapping("/test/meta-info")
     public ResponseEntity<Map<String, Object>> metaInfo() {
         return ResponseEntity.ok(whatsAppNotificationService.fetchMetaTemplates());
     }
