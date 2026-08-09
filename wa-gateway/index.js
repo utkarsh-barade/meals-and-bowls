@@ -156,8 +156,30 @@ async function sendWhatsApp(toPhone, message) {
   if (!sock) throw new Error('WhatsApp socket not initialized');
   let num = toPhone.replace(/[^0-9]/g, '');
   if (num.length === 10) num = '91' + num;
-  const jid = num + '@s.whatsapp.net';
+
+  let jid = num + '@s.whatsapp.net';
+
+  // Check onWhatsApp to fetch exact canonical JID and pre-fetch encryption pre-keys
+  try {
+    const results = await sock.onWhatsApp(num);
+    if (results && results.length > 0 && results[0].exists) {
+      jid = results[0].jid;
+    }
+  } catch (err) {
+    console.warn(`[WA-Gateway] onWhatsApp check warning for ${num}:`, err.message);
+  }
+
+  // Send presence update to establish chat state for WhatsApp Business
+  try {
+    await sock.sendPresenceUpdate('composing', jid);
+  } catch (_) {}
+
+  // Dispatch the message
   await sock.sendMessage(jid, { text: message });
+
+  try {
+    await sock.sendPresenceUpdate('paused', jid);
+  } catch (_) {}
 }
 
 // ─── REST API ─────────────────────────────────────────────────────────────────
