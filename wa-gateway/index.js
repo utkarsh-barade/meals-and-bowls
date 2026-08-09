@@ -95,14 +95,16 @@ async function connectToWhatsApp() {
         isConnected = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const reason = lastDisconnect?.error?.message || 'unknown';
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401 && statusCode !== 403;
+        // Only wipe auth session if explicitly logged out from mobile phone
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        const shouldReconnect = !isLoggedOut;
 
         console.log(`[WA-Gateway] Connection closed. Status: ${statusCode}, Reason: ${reason}. Reconnecting: ${shouldReconnect}`);
 
         if (shouldReconnect) {
           setTimeout(() => connectToWhatsApp(), 3000);
         } else {
-          console.log('[WA-Gateway] Logged out or invalid session. Resetting auth_info folder...');
+          console.log('[WA-Gateway] Explicitly logged out from WhatsApp. Resetting auth_info folder...');
           clearAuthFolder();
           currentQrBase64 = null;
           setTimeout(() => connectToWhatsApp(), 2000);
