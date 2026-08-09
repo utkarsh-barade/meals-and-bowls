@@ -7,6 +7,7 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   Browsers,
+  isJidBroadcast,
 } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const pino = require('pino');
@@ -64,13 +65,16 @@ async function connectToWhatsApp() {
       version,
       logger,
       auth: state,
-      browser: ['Mac OS', 'Chrome', '124.0.0'],
+      browser: Browsers.ubuntu('Chrome'),
       syncFullHistory: false,
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
+      keepAliveIntervalMs: 25000,
+      retryRequestDelayMs: 250,
       qrTimeout: 45000,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
+      shouldIgnoreJid: (jid) => isJidBroadcast(jid),
       getMessage: async () => ({ conversation: 'Hello' }),
     });
 
