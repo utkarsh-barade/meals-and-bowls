@@ -159,6 +159,9 @@ async function initializeClient() {
 
     client.on('authenticated', () => {
       console.log('[WA-Gateway] Session authenticated successfully.');
+      isConnected = true;
+      isInitializing = false;
+      currentQrBase64 = null;
     });
 
     client.on('auth_failure', (msg) => {
@@ -219,16 +222,23 @@ async function sendWhatsApp(toPhone, message) {
 
 // GET /status — Returns connection status + QR code if disconnected
 app.get('/status', requireApiKey, (req, res) => {
+  let activeStatus = isConnected;
+  if (!activeStatus && client && client.info) {
+    activeStatus = true;
+    isConnected = true;
+    currentQrBase64 = null;
+  }
   res.json({
-    connected: isConnected,
-    qrCode: isConnected ? null : currentQrBase64,
+    connected: activeStatus,
+    qrCode: activeStatus ? null : currentQrBase64,
     queueLength: messageQueue.length,
   });
 });
 
 // GET /health — Public health check (no API key needed)
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', connected: isConnected });
+  let activeStatus = isConnected || (client && client.info ? true : false);
+  res.json({ status: 'ok', connected: activeStatus });
 });
 
 // POST /send — Send a WhatsApp message or queue it
