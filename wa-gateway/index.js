@@ -20,6 +20,8 @@ app.use(express.json());
 // ─── State ───────────────────────────────────────────────────────────────────
 let sock = null;
 let isConnected = false;
+let isConnecting = false;            // Guard: prevent multiple concurrent connect calls
+let reconnectTimer = null;           // Single reconnect timer reference
 let currentQrBase64 = null;          // Latest QR code as base64 PNG
 const messageQueue = [];             // Pending messages when disconnected
 
@@ -50,8 +52,30 @@ function clearAuthFolder() {
   }
 }
 
+// ─── Reconnect Helper ────────────────────────────────────────────────────────
+function scheduleReconnect(delayMs) {
+  if (reconnectTimer) clearTimeout(reconnectTimer); // Cancel any pending reconnect
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectToWhatsApp();
+  }, delayMs);
+}
+
 // ─── WhatsApp Connection ──────────────────────────────────────────────────────
 async function connectToWhatsApp() {
+  // Prevent multiple concurrent connection attempts
+  if (isConnecting) {
+    console.log('[WA-Gateway] Connection already in progress. Skipping duplicate call.');
+    return;
+  }
+  isConnecting = true;
+
+  // End old socket cleanly before creating a new one
+  if (sock) {
+    try { sock.end(); } catch (_) {}
+    sock = null;
+  }
+
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
@@ -114,18 +138,20 @@ async function connectToWhatsApp() {
         console.log(`  Full Error  : ${JSON.stringify(lastDisconnect?.error?.output)}`);
         console.log('========================================');
 
+        isConnecting = false; // Allow fresh connection attempt
         if (shouldReconnect) {
-          setTimeout(() => connectToWhatsApp(), 3000);
+          scheduleReconnect(3000);
         } else {
           console.log('[WA-Gateway] Explicitly logged out from WhatsApp. Resetting auth_info folder...');
           clearAuthFolder();
           currentQrBase64 = null;
-          setTimeout(() => connectToWhatsApp(), 2000);
+          scheduleReconnect(2000);
         }
       }
 
       if (connection === 'open') {
         isConnected = true;
+        isConnecting = false;
         currentQrBase64 = null;
         console.log('[WA-Gateway] WhatsApp connected successfully!');
 
@@ -143,8 +169,8 @@ async function connectToWhatsApp() {
 
   } catch (err) {
     console.error('[WA-Gateway] Socket initialization error:', err.message);
-    clearAuthFolder();
-    setTimeout(() => connectToWhatsApp(), 4000);
+    isConnecting = false;
+    scheduleReconnect(4000);
   }
 }
 
