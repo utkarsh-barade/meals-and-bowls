@@ -115,6 +115,7 @@ async function initializeClient() {
 
     client.on('qr', async (qr) => {
       console.log('[WA-Gateway] New QR code generated successfully.');
+      isInitializing = false;
       try {
         currentQrBase64 = await QRCode.toDataURL(qr);
         isConnected = false;
@@ -157,6 +158,7 @@ async function initializeClient() {
     });
 
     await client.initialize();
+    isInitializing = false;
   } catch (err) {
     console.error('[WA-Gateway] Error initializing client:', err.message);
     isConnected = false;
@@ -262,6 +264,7 @@ app.post('/reconnect', requireApiKey, async (req, res) => {
   } catch (_) {}
 
   isConnected = false;
+  isInitializing = false;
   currentQrBase64 = null;
   clearAuthFolder();
 
