@@ -99,11 +99,20 @@ async function connectToWhatsApp() {
         isConnected = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const reason = lastDisconnect?.error?.message || 'unknown';
+        const errorData = lastDisconnect?.error?.output?.payload || {};
         // Only wipe auth session if explicitly logged out from mobile phone
         const isLoggedOut = statusCode === DisconnectReason.loggedOut;
         const shouldReconnect = !isLoggedOut;
 
-        console.log(`[WA-Gateway] Connection closed. Status: ${statusCode}, Reason: ${reason}. Reconnecting: ${shouldReconnect}`);
+        // Detailed logging to diagnose WA Business disconnect root cause
+        console.log('=== [WA-Gateway] DISCONNECT DETAILS ===');
+        console.log(`  Status Code : ${statusCode}`);
+        console.log(`  Reason      : ${reason}`);
+        console.log(`  Is LoggedOut: ${isLoggedOut}`);
+        console.log(`  Reconnect   : ${shouldReconnect}`);
+        console.log(`  Error Data  : ${JSON.stringify(errorData)}`);
+        console.log(`  Full Error  : ${JSON.stringify(lastDisconnect?.error?.output)}`);
+        console.log('========================================');
 
         if (shouldReconnect) {
           setTimeout(() => connectToWhatsApp(), 3000);
