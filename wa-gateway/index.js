@@ -120,10 +120,14 @@ async function connectToWhatsApp() {
         currentQrBase64 = null;
         console.log('[WA-Gateway] WhatsApp connected successfully!');
 
-        // Flush queued messages
+        // Wait 4 seconds for WA Business session to fully settle before flushing
+        // (Sending immediately after connect causes Signal key handshake failure on WA Business)
         if (messageQueue.length > 0) {
-          console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
-          await flushQueue();
+          console.log(`[WA-Gateway] ${messageQueue.length} messages queued. Waiting 4s for session to settle...`);
+          setTimeout(async () => {
+            console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
+            await flushQueue();
+          }, 4000);
         }
       }
     });
@@ -136,6 +140,8 @@ async function connectToWhatsApp() {
 }
 
 // ─── Queue Flush ──────────────────────────────────────────────────────────────
+const MAX_RETRY = 3; // Maximum times a message can be re-queued
+
 async function flushQueue() {
   const toSend = [...messageQueue];
   messageQueue.length = 0;
@@ -145,9 +151,16 @@ async function flushQueue() {
       await sendWhatsApp(item.to, item.message);
       console.log(`[WA-Gateway] Queued message sent to ${item.to}`);
     } catch (err) {
-      console.error(`[WA-Gateway] Failed to send queued msg to ${item.to}:`, err.message);
-      messageQueue.push(item); // re-queue on failure
+      const retryCount = (item.retryCount || 0) + 1;
+      console.error(`[WA-Gateway] Failed to send queued msg to ${item.to} (attempt ${retryCount}):`, err.message);
+      if (retryCount < MAX_RETRY) {
+        messageQueue.push({ ...item, retryCount }); // re-queue with retry count
+      } else {
+        console.error(`[WA-Gateway] Max retries reached for ${item.to}. Dropping message.`);
+      }
     }
+    // 1.5 sec delay between each message to avoid WA Business rate limit / stream error
+    await new Promise(resolve => setTimeout(resolve, 1500));
   }
 }
 
