@@ -1,7 +1,9 @@
 'use strict';
 
 const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, RemoteAuth } = require('whatsapp-web.js');
+const { MongoStore } = require('wwebjs-mongo');
+const mongoose = require('mongoose');
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
@@ -12,12 +14,17 @@ app.use(express.json());
 // ─── State ───────────────────────────────────────────────────────────────────
 let client = null;
 let isConnected = false;
+let isInitializing = false;          // Guard: prevent multiple concurrent connect calls
+let initTimeout = null;               // Single reconnect timer reference
 let currentQrBase64 = null;          // Latest QR code as base64 PNG
 const messageQueue = [];             // Pending messages when disconnected
 
 const AUTH_DIR = path.join(__dirname, 'auth_info');
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.WA_GATEWAY_API_KEY || 'meals-bowls-secret';
+
+let store = null;
+let useRemote = false;
 
 // ─── API Key Middleware ───────────────────────────────────────────────────────
 function requireApiKey(req, res, next) {
@@ -30,8 +37,29 @@ function requireApiKey(req, res, next) {
   next();
 }
 
-let isInitializing = false;
-let initTimeout = null;
+function clearAuthFolder() {
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      console.log('[WA-Gateway] Cleared local session directory.');
+    }
+  } catch (err) {
+    console.error('[WA-Gateway] Error clearing local session folder:', err.message);
+  }
+}
+
+async function clearSessionData() {
+  clearAuthFolder();
+  if (useRemote && store) {
+    try {
+      console.log('[WA-Gateway] Clearing remote session from MongoDB...');
+      await store.delete({ session: 'meals-bowls-session' });
+      console.log('[WA-Gateway] Remote session cleared.');
+    } catch (err) {
+      console.error('[WA-Gateway] Failed to delete remote session:', err.message);
+    }
+  }
+}
 
 function scheduleInit(delayMs) {
   if (initTimeout) clearTimeout(initTimeout);
@@ -59,14 +87,19 @@ function removeLocks(dir) {
   } catch (_) {}
 }
 
-function clearAuthFolder() {
-  try {
-    if (fs.existsSync(AUTH_DIR)) {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-      console.log('[WA-Gateway] Cleared session directory.');
+async function startDatabase() {
+  if (process.env.MONGODB_URI) {
+    try {
+      console.log('[WA-Gateway] Connecting to MongoDB for session storage...');
+      await mongoose.connect(process.env.MONGODB_URI);
+      store = new MongoStore({ mongoose: mongoose });
+      useRemote = true;
+      console.log('[WA-Gateway] MongoDB session store connected successfully.');
+    } catch (err) {
+      console.error('[WA-Gateway] MongoDB connection failed. Falling back to LocalAuth:', err.message);
     }
-  } catch (err) {
-    console.error('[WA-Gateway] Error clearing session folder:', err.message);
+  } else {
+    console.log('[WA-Gateway] MONGODB_URI not found. Using LocalAuth (file storage).');
   }
 }
 
@@ -128,9 +161,17 @@ async function initializeClient() {
     puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
   }
 
+  const authStrategy = useRemote
+    ? new RemoteAuth({
+        store: store,
+        backupSyncIntervalMs: 60000,
+        clientId: 'meals-bowls-session',
+      })
+    : new LocalAuth({ dataPath: AUTH_DIR });
+
   try {
     client = new Client({
-      authStrategy: new LocalAuth({ dataPath: AUTH_DIR }),
+      authStrategy: authStrategy,
       puppeteer: puppeteerOptions,
     });
 
@@ -164,12 +205,16 @@ async function initializeClient() {
       currentQrBase64 = null;
     });
 
-    client.on('auth_failure', (msg) => {
+    client.on('remote_session_saved', () => {
+      console.log('[WA-Gateway] Remote session successfully saved to MongoDB!');
+    });
+
+    client.on('auth_failure', async (msg) => {
       console.error('[WA-Gateway] Auth failure:', msg);
       isConnected = false;
       isInitializing = false;
       currentQrBase64 = null;
-      clearAuthFolder();
+      await clearSessionData();
       scheduleInit(3000);
     });
 
@@ -297,7 +342,7 @@ app.post('/reconnect', requireApiKey, async (req, res) => {
   isConnected = false;
   isInitializing = false;
   currentQrBase64 = null;
-  clearAuthFolder();
+  await clearSessionData();
 
   setTimeout(() => initializeClient(), 1000);
   res.json({ status: 'RECONNECTING', message: 'Session cleared. Generating new QR code...' });
@@ -310,12 +355,13 @@ app.post('/logout', requireApiKey, async (req, res) => {
   } catch (_) {}
   isConnected = false;
   currentQrBase64 = null;
-  clearAuthFolder();
+  await clearSessionData();
   res.json({ status: 'LOGGED_OUT' });
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`[WA-Gateway] Server running on port ${PORT}`);
+  await startDatabase();
   initializeClient();
 });

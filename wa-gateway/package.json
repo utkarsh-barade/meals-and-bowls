@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "express": "^4.21.2",
+    "mongoose": "^8.0.0",
     "qrcode": "^1.5.4",
-    "whatsapp-web.js": "^1.26.0"
+    "whatsapp-web.js": "^1.26.0",
+    "wwebjs-mongo": "^1.1.0"
   },
   "engines": {
     "node": ">=18"
