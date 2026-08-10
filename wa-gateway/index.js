@@ -157,29 +157,11 @@ async function sendWhatsApp(toPhone, message) {
   let num = toPhone.replace(/[^0-9]/g, '');
   if (num.length === 10) num = '91' + num;
 
-  let jid = num + '@s.whatsapp.net';
+  const jid = num + '@s.whatsapp.net';
 
-  // Check onWhatsApp to fetch exact canonical JID and pre-fetch encryption pre-keys
-  try {
-    const results = await sock.onWhatsApp(num);
-    if (results && results.length > 0 && results[0].exists) {
-      jid = results[0].jid;
-    }
-  } catch (err) {
-    console.warn(`[WA-Gateway] onWhatsApp check warning for ${num}:`, err.message);
-  }
-
-  // Send presence update to establish chat state for WhatsApp Business
-  try {
-    await sock.sendPresenceUpdate('composing', jid);
-  } catch (_) {}
-
-  // Dispatch the message
+  // Direct send — no onWhatsApp query, no presence update
+  // (WA Business anti-bot detection flags extra server queries before send)
   await sock.sendMessage(jid, { text: message });
-
-  try {
-    await sock.sendPresenceUpdate('paused', jid);
-  } catch (_) {}
 }
 
 // ─── REST API ─────────────────────────────────────────────────────────────────
