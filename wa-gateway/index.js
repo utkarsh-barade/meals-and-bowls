@@ -30,6 +30,35 @@ function requireApiKey(req, res, next) {
   next();
 }
 
+let isInitializing = false;
+let initTimeout = null;
+
+function scheduleInit(delayMs) {
+  if (initTimeout) clearTimeout(initTimeout);
+  initTimeout = setTimeout(() => {
+    initTimeout = null;
+    initializeClient();
+  }, delayMs);
+}
+
+function removeLocks(dir) {
+  if (!fs.existsSync(dir)) return;
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        removeLocks(fullPath);
+      } else if (entry.name.includes('Singleton')) {
+        try {
+          fs.unlinkSync(fullPath);
+          console.log(`[WA-Gateway] Removed stale lock file: ${entry.name}`);
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+}
+
 function clearAuthFolder() {
   try {
     if (fs.existsSync(AUTH_DIR)) {
@@ -42,7 +71,23 @@ function clearAuthFolder() {
 }
 
 // ─── WhatsApp Client Setup ────────────────────────────────────────────────────
-function initializeClient() {
+async function initializeClient() {
+  if (isInitializing) {
+    console.log('[WA-Gateway] Initialization already in progress. Skipping.');
+    return;
+  }
+  isInitializing = true;
+
+  if (client) {
+    try {
+      await client.destroy();
+    } catch (_) {}
+    client = null;
+  }
+
+  // Remove Chrome lock files if left over from previous process/crash
+  removeLocks(AUTH_DIR);
+
   console.log('[WA-Gateway] Initializing whatsapp-web.js Client...');
 
   const puppeteerOptions = {
@@ -54,7 +99,6 @@ function initializeClient() {
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--single-process',
       '--disable-gpu',
     ],
   };
@@ -63,55 +107,62 @@ function initializeClient() {
     puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
   }
 
-  client = new Client({
-    authStrategy: new LocalAuth({ dataPath: AUTH_DIR }),
-    puppeteer: puppeteerOptions,
-  });
+  try {
+    client = new Client({
+      authStrategy: new LocalAuth({ dataPath: AUTH_DIR }),
+      puppeteer: puppeteerOptions,
+    });
 
-  client.on('qr', async (qr) => {
-    console.log('[WA-Gateway] New QR code generated successfully.');
-    try {
-      currentQrBase64 = await QRCode.toDataURL(qr);
+    client.on('qr', async (qr) => {
+      console.log('[WA-Gateway] New QR code generated successfully.');
+      try {
+        currentQrBase64 = await QRCode.toDataURL(qr);
+        isConnected = false;
+      } catch (err) {
+        console.error('[WA-Gateway] QRCode rendering error:', err.message);
+      }
+    });
+
+    client.on('ready', async () => {
+      isConnected = true;
+      isInitializing = false;
+      currentQrBase64 = null;
+      console.log('[WA-Gateway] WhatsApp Web Client is READY!');
+
+      if (messageQueue.length > 0) {
+        console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
+        await flushQueue();
+      }
+    });
+
+    client.on('authenticated', () => {
+      console.log('[WA-Gateway] Session authenticated successfully.');
+    });
+
+    client.on('auth_failure', (msg) => {
+      console.error('[WA-Gateway] Auth failure:', msg);
       isConnected = false;
-    } catch (err) {
-      console.error('[WA-Gateway] QRCode rendering error:', err.message);
-    }
-  });
+      isInitializing = false;
+      currentQrBase64 = null;
+      clearAuthFolder();
+      scheduleInit(3000);
+    });
 
-  client.on('ready', async () => {
-    isConnected = true;
-    currentQrBase64 = null;
-    console.log('[WA-Gateway] WhatsApp Web Client is READY!');
+    client.on('disconnected', (reason) => {
+      console.log('[WA-Gateway] Client disconnected:', reason);
+      isConnected = false;
+      isInitializing = false;
+      currentQrBase64 = null;
+      scheduleInit(3000);
+    });
 
-    if (messageQueue.length > 0) {
-      console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
-      await flushQueue();
-    }
-  });
-
-  client.on('authenticated', () => {
-    console.log('[WA-Gateway] Session authenticated successfully.');
-  });
-
-  client.on('auth_failure', (msg) => {
-    console.error('[WA-Gateway] Auth failure:', msg);
-    isConnected = false;
-    currentQrBase64 = null;
-    clearAuthFolder();
-    setTimeout(() => initializeClient(), 3000);
-  });
-
-  client.on('disconnected', (reason) => {
-    console.log('[WA-Gateway] Client disconnected:', reason);
-    isConnected = false;
-    currentQrBase64 = null;
-    setTimeout(() => initializeClient(), 3000);
-  });
-
-  client.initialize().catch((err) => {
+    await client.initialize();
+  } catch (err) {
     console.error('[WA-Gateway] Error initializing client:', err.message);
-    setTimeout(() => initializeClient(), 5000);
-  });
+    isConnected = false;
+    isInitializing = false;
+    scheduleInit(5000);
+  }
 }
 
 // ─── Queue Processing ─────────────────────────────────────────────────────────
