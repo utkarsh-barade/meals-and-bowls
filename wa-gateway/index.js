@@ -155,14 +155,14 @@ async function connectToWhatsApp() {
         currentQrBase64 = null;
         console.log('[WA-Gateway] WhatsApp connected successfully!');
 
-        // Wait 4 seconds for WA Business session to fully settle before flushing
-        // (Sending immediately after connect causes Signal key handshake failure on WA Business)
+        // Wait 8 seconds for WA Business session to fully settle before flushing
+        // (4s was not enough after 401/515 recovery — WA Business silently drops messages)
         if (messageQueue.length > 0) {
-          console.log(`[WA-Gateway] ${messageQueue.length} messages queued. Waiting 4s for session to settle...`);
+          console.log(`[WA-Gateway] ${messageQueue.length} messages queued. Waiting 8s for session to settle...`);
           setTimeout(async () => {
             console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
             await flushQueue();
-          }, 4000);
+          }, 8000);
         }
       }
     });
