@@ -20,6 +20,7 @@ app.use(express.json());
 let sock = null;
 let isConnected = false;
 let isInitializing = false;
+let reconnectTimer = null;
 let currentQrBase64 = null;
 const messageQueue = [];
 
@@ -51,25 +52,48 @@ function clearAuthFolder() {
   }
 }
 
+// ─── Socket Cleanup ──────────────────────────────────────────────────────────
+function destroySocket() {
+  if (sock) {
+    try { sock.ev.removeAllListeners(); } catch (_) {}
+    try { sock.end(); } catch (_) {}
+    try { sock.ws?.close(); } catch (_) {}
+    sock = null;
+  }
+}
+
+// ─── Schedule Reconnect (debounced) ──────────────────────────────────────────
+function scheduleReconnect(delayMs) {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectToWhatsApp();
+  }, delayMs);
+}
+
 // ─── Phone Number Formatter ───────────────────────────────────────────────────
-// Handles: 10-digit, already-prefixed 91xxxxxxxxxx (12-digit), or any other format
 function formatPhoneNumber(toPhone) {
   let num = toPhone.replace(/[^0-9]/g, '');
-  // Already has 91 country code (12 digits)
   if (num.startsWith('91') && num.length === 12) return num;
-  // Plain 10-digit Indian mobile number
   if (num.length === 10) return '91' + num;
-  // Return as-is for any other format
   return num;
 }
 
 // ─── WhatsApp Connection ──────────────────────────────────────────────────────
 async function connectToWhatsApp() {
   if (isInitializing) {
-    console.log('[WA-Gateway] Connection already in progress. Skipping duplicate call.');
+    console.log('[WA-Gateway] Connection already in progress. Skipping.');
     return;
   }
+
+  // Clean up any previous socket before creating a new one
+  destroySocket();
+
   isInitializing = true;
+  isConnected = false;
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -88,7 +112,7 @@ async function connectToWhatsApp() {
       syncFullHistory: false,
       markOnlineOnConnect: false,
       generateHighQualityLinkPreview: false,
-      qrTimeout: 45000,
+      qrTimeout: 60000,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
       getMessage: async () => ({ conversation: 'Hello' }),
@@ -100,8 +124,8 @@ async function connectToWhatsApp() {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        console.log('[WA-Gateway] New QR code generated successfully.');
         isInitializing = false;
+        console.log('[WA-Gateway] New QR code generated successfully.');
         try {
           currentQrBase64 = await QRCode.toDataURL(qr);
           isConnected = false;
@@ -121,17 +145,28 @@ async function connectToWhatsApp() {
         console.log('  Status Code :', statusCode);
         console.log('  Reason      :', reason);
         console.log('  Is LoggedOut:', isLoggedOut);
-        console.log('  Reconnect   :', !isLoggedOut);
         console.log('========================================');
 
+        destroySocket();
+
         if (isLoggedOut) {
-          console.log('[WA-Gateway] Explicitly logged out from WhatsApp. Resetting auth_info folder...');
+          console.log('[WA-Gateway] Logged out. Clearing session and restarting...');
           clearAuthFolder();
           currentQrBase64 = null;
-          setTimeout(() => connectToWhatsApp(), 2000);
+          scheduleReconnect(3000);
+        } else if (statusCode === 428) {
+          // QR expired without scan — wait longer before generating new QR
+          console.log('[WA-Gateway] QR expired (no scan). Waiting 15s before new QR...');
+          scheduleReconnect(15000);
+        } else if (statusCode === 440) {
+          // Conflict (two sessions) — wait longer and clear session
+          console.log('[WA-Gateway] Session conflict (440). Clearing auth and waiting 10s...');
+          clearAuthFolder();
+          currentQrBase64 = null;
+          scheduleReconnect(10000);
         } else {
-          console.log('[WA-Gateway] Connection dropped. Auto-reconnecting in 3s...');
-          setTimeout(() => connectToWhatsApp(), 3000);
+          // Generic drop — reconnect after 5s
+          scheduleReconnect(5000);
         }
       }
 
@@ -149,11 +184,11 @@ async function connectToWhatsApp() {
     });
 
   } catch (err) {
-    console.error('[WA-Gateway] Socket initialization error:', err.message);
+    console.error('[WA-Gateway] Initialization error:', err.message);
     isConnected = false;
     isInitializing = false;
-    clearAuthFolder();
-    setTimeout(() => connectToWhatsApp(), 4000);
+    destroySocket();
+    scheduleReconnect(5000);
   }
 }
 
@@ -167,7 +202,7 @@ async function flushQueue() {
       await sendWhatsApp(item.to, item.message);
       console.log(`[WA-Gateway] Queued message sent to ${item.to}`);
     } catch (err) {
-      console.error(`[WA-Gateway] Failed to send queued msg to ${item.to}:`, err.message);
+      console.error(`[WA-Gateway] Failed queued msg to ${item.to}:`, err.message);
       messageQueue.push(item);
     }
     await new Promise((r) => setTimeout(r, 1000));
@@ -185,7 +220,6 @@ async function sendWhatsApp(toPhone, message) {
 
 // ─── REST API ─────────────────────────────────────────────────────────────────
 
-// GET /status
 app.get('/status', requireApiKey, (req, res) => {
   res.json({
     connected: isConnected,
@@ -194,12 +228,10 @@ app.get('/status', requireApiKey, (req, res) => {
   });
 });
 
-// GET /health — Public (for UptimeRobot ping)
 app.all('/health', (req, res) => {
   res.json({ status: 'ok', connected: isConnected });
 });
 
-// POST /send
 app.post('/send', requireApiKey, async (req, res) => {
   const { to, message } = req.body;
   if (!to || !message) {
@@ -208,67 +240,50 @@ app.post('/send', requireApiKey, async (req, res) => {
 
   if (!isConnected) {
     messageQueue.push({ to, message, queuedAt: new Date().toISOString() });
-    console.log(`[WA-Gateway] WA disconnected. Queued message for ${to}. Queue size: ${messageQueue.length}`);
     return res.status(202).json({
       status: 'QUEUED',
-      message: 'WhatsApp disconnected. Message queued for reconnect.',
+      message: 'WhatsApp disconnected. Message queued.',
       queueLength: messageQueue.length,
     });
   }
 
   try {
     await sendWhatsApp(to, message);
-    console.log(`[WA-Gateway] Message sent to ${to}`);
     res.json({ status: 'SENT', to });
   } catch (err) {
-    console.error(`[WA-Gateway] Send error for ${to}:`, err.message);
     messageQueue.push({ to, message, queuedAt: new Date().toISOString() });
-    res.status(500).json({
-      status: 'QUEUED_ON_ERROR',
-      error: err.message,
-      queueLength: messageQueue.length,
-    });
+    res.status(500).json({ status: 'QUEUED_ON_ERROR', error: err.message });
   }
 });
 
-// GET /queue
 app.get('/queue', requireApiKey, (req, res) => {
   res.json({ queueLength: messageQueue.length, queue: messageQueue });
 });
 
-// POST /flush-queue
 app.post('/flush-queue', requireApiKey, async (req, res) => {
-  if (!isConnected) {
-    return res.status(400).json({ error: 'WhatsApp is not connected.' });
-  }
+  if (!isConnected) return res.status(400).json({ error: 'Not connected.' });
   const count = messageQueue.length;
   await flushQueue();
   res.json({ status: 'FLUSHED', messagesFlushed: count });
 });
 
-// POST /reconnect — Wipe session and generate fresh QR
 app.post('/reconnect', requireApiKey, async (req, res) => {
+  console.log('[WA-Gateway] Manual reconnect triggered.');
   isInitializing = false;
   isConnected = false;
   currentQrBase64 = null;
-
-  if (sock) {
-    try { sock.end(); } catch (_) {}
-    sock = null;
-  }
-
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  destroySocket();
   clearAuthFolder();
   setTimeout(() => connectToWhatsApp(), 1000);
-  res.json({ status: 'RECONNECTING', message: 'Session cleared. Fresh QR code is being generated...' });
+  res.json({ status: 'RECONNECTING', message: 'Session cleared. Fresh QR incoming...' });
 });
 
-// POST /logout
 app.post('/logout', requireApiKey, async (req, res) => {
-  try {
-    if (sock) await sock.logout();
-  } catch (_) {}
+  try { if (sock) await sock.logout(); } catch (_) {}
   isConnected = false;
   currentQrBase64 = null;
+  destroySocket();
   clearAuthFolder();
   res.json({ status: 'LOGGED_OUT' });
 });
