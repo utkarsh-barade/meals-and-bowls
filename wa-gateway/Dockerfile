@@ -1,23 +1,9 @@
 FROM node:20-alpine
 
-# Install Chromium and dependencies for Puppeteer
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    git \
-    python3 \
-    make \
-    g++
-
-# Tell Puppeteer to use system Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
 WORKDIR /app
+
+# Install git and build tools required by @whiskeysockets/baileys
+RUN apk add --no-cache git python3 make g++
 
 # Copy package files
 COPY package*.json ./
