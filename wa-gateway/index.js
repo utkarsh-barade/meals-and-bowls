@@ -1,10 +1,15 @@
 'use strict';
 
 const express = require('express');
-const { Client, LocalAuth, RemoteAuth } = require('whatsapp-web.js');
-const { MongoStore } = require('wwebjs-mongo');
-const mongoose = require('mongoose');
+const makeWASocket = require('@whiskeysockets/baileys').default;
+const {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  Browsers,
+} = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
+const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,231 +17,147 @@ const app = express();
 app.use(express.json());
 
 // ─── State ───────────────────────────────────────────────────────────────────
-let client = null;
+let sock = null;
 let isConnected = false;
-let isInitializing = false;          // Guard: prevent multiple concurrent connect calls
-let initTimeout = null;               // Single reconnect timer reference
-let currentQrBase64 = null;          // Latest QR code as base64 PNG
-const messageQueue = [];             // Pending messages when disconnected
+let isInitializing = false;
+let currentQrBase64 = null;
+const messageQueue = [];
 
 const AUTH_DIR = path.join(__dirname, 'auth_info');
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.WA_GATEWAY_API_KEY || 'meals-bowls-secret';
 
-let store = null;
-let useRemote = false;
+// ─── Logger ──────────────────────────────────────────────────────────────────
+const logger = pino({ level: 'silent' });
 
 // ─── API Key Middleware ───────────────────────────────────────────────────────
 function requireApiKey(req, res, next) {
   const key = req.headers['x-api-key'] || req.query.apiKey;
-  const expectedKey = process.env.WA_GATEWAY_API_KEY || 'meals-bowls-secret';
-  if (key && key !== expectedKey && expectedKey !== 'meals-bowls-secret') {
-    console.warn(`[WA-Gateway] API Key mismatch! Received: ${key}, Expected: ${expectedKey}`);
+  if (key !== API_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
 }
 
+// ─── Auth Folder Cleanup ─────────────────────────────────────────────────────
 function clearAuthFolder() {
   try {
     if (fs.existsSync(AUTH_DIR)) {
       fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-      console.log('[WA-Gateway] Cleared local session directory.');
+      console.log('[WA-Gateway] Cleared stale auth_info session directory.');
     }
   } catch (err) {
-    console.error('[WA-Gateway] Error clearing local session folder:', err.message);
+    console.error('[WA-Gateway] Error clearing auth_info:', err.message);
   }
 }
 
-async function clearSessionData() {
-  clearAuthFolder();
-  if (useRemote && store) {
-    try {
-      console.log('[WA-Gateway] Clearing remote session from MongoDB...');
-      await store.delete({ session: 'meals-bowls-session' });
-      console.log('[WA-Gateway] Remote session cleared.');
-    } catch (err) {
-      console.error('[WA-Gateway] Failed to delete remote session:', err.message);
-    }
-  }
+// ─── Phone Number Formatter ───────────────────────────────────────────────────
+// Handles: 10-digit, already-prefixed 91xxxxxxxxxx (12-digit), or any other format
+function formatPhoneNumber(toPhone) {
+  let num = toPhone.replace(/[^0-9]/g, '');
+  // Already has 91 country code (12 digits)
+  if (num.startsWith('91') && num.length === 12) return num;
+  // Plain 10-digit Indian mobile number
+  if (num.length === 10) return '91' + num;
+  // Return as-is for any other format
+  return num;
 }
 
-function scheduleInit(delayMs) {
-  if (initTimeout) clearTimeout(initTimeout);
-  initTimeout = setTimeout(() => {
-    initTimeout = null;
-    initializeClient();
-  }, delayMs);
-}
-
-function removeLocks(dir) {
-  if (!fs.existsSync(dir)) return;
-  try {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        removeLocks(fullPath);
-      } else if (entry.name.includes('Singleton')) {
-        try {
-          fs.unlinkSync(fullPath);
-          console.log(`[WA-Gateway] Removed stale lock file: ${entry.name}`);
-        } catch (_) {}
-      }
-    }
-  } catch (_) {}
-}
-
-async function startDatabase() {
-  if (process.env.MONGODB_URI) {
-    try {
-      console.log('[WA-Gateway] Connecting to MongoDB for session storage...');
-      await mongoose.connect(process.env.MONGODB_URI);
-      store = new MongoStore({ mongoose: mongoose });
-      useRemote = true;
-      console.log('[WA-Gateway] MongoDB session store connected successfully.');
-    } catch (err) {
-      console.error('[WA-Gateway] MongoDB connection failed. Falling back to LocalAuth:', err.message);
-    }
-  } else {
-    console.log('[WA-Gateway] MONGODB_URI not found. Using LocalAuth (file storage).');
-  }
-}
-
-// ─── WhatsApp Client Setup ────────────────────────────────────────────────────
-async function initializeClient() {
+// ─── WhatsApp Connection ──────────────────────────────────────────────────────
+async function connectToWhatsApp() {
   if (isInitializing) {
-    console.log('[WA-Gateway] Initialization already in progress. Skipping.');
+    console.log('[WA-Gateway] Connection already in progress. Skipping duplicate call.');
     return;
   }
   isInitializing = true;
 
-  if (client) {
-    try {
-      await client.destroy();
-    } catch (_) {}
-    client = null;
-  }
-
-  // Remove Chrome lock files if left over from previous process/crash
-  removeLocks(AUTH_DIR);
-
-  console.log('[WA-Gateway] Initializing whatsapp-web.js Client...');
-
-  const puppeteerOptions = {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--disable-extensions',
-      '--mute-audio',
-      '--disable-background-networking',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-breakpad',
-      '--disable-client-side-phishing-detection',
-      '--disable-component-update',
-      '--disable-default-apps',
-      '--disable-domain-reliability',
-      '--disable-features=AudioServiceOutOfProcess',
-      '--disable-hang-monitor',
-      '--disable-ipc-flooding-protection',
-      '--disable-popup-blocking',
-      '--disable-prompt-on-repost',
-      '--disable-renderer-backgrounding',
-      '--disable-sync',
-      '--metrics-recording-only',
-      '--no-default-browser-check',
-      '--safebrowsing-disable-auto-update',
-    ],
-  };
-
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-  }
-
-  const authStrategy = useRemote
-    ? new RemoteAuth({
-        store: store,
-        backupSyncIntervalMs: 60000,
-        clientId: 'meals-bowls-session',
-      })
-    : new LocalAuth({ dataPath: AUTH_DIR });
-
   try {
-    client = new Client({
-      authStrategy: authStrategy,
-      puppeteer: puppeteerOptions,
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
+      version: [2, 3000, 1015901307],
+      isLatest: false,
+    }));
+
+    console.log(`[WA-Gateway] Initializing socket with WA version: ${version.join('.')} (isLatest: ${isLatest})`);
+
+    sock = makeWASocket({
+      version,
+      logger,
+      auth: state,
+      browser: Browsers.ubuntu('Chrome'),
+      syncFullHistory: false,
+      markOnlineOnConnect: false,
+      generateHighQualityLinkPreview: false,
+      qrTimeout: 45000,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      getMessage: async () => ({ conversation: 'Hello' }),
     });
 
-    client.on('qr', async (qr) => {
-      console.log('[WA-Gateway] New QR code generated successfully.');
-      isInitializing = false;
-      try {
-        currentQrBase64 = await QRCode.toDataURL(qr);
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        console.log('[WA-Gateway] New QR code generated successfully.');
+        isInitializing = false;
+        try {
+          currentQrBase64 = await QRCode.toDataURL(qr);
+          isConnected = false;
+        } catch (err) {
+          console.error('[WA-Gateway] QRCode generation error:', err.message);
+        }
+      }
+
+      if (connection === 'close') {
         isConnected = false;
-      } catch (err) {
-        console.error('[WA-Gateway] QRCode rendering error:', err.message);
+        isInitializing = false;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const reason = lastDisconnect?.error?.output?.payload?.message || 'unknown';
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+
+        console.log('=== [WA-Gateway] DISCONNECT DETAILS ===');
+        console.log('  Status Code :', statusCode);
+        console.log('  Reason      :', reason);
+        console.log('  Is LoggedOut:', isLoggedOut);
+        console.log('  Reconnect   :', !isLoggedOut);
+        console.log('========================================');
+
+        if (isLoggedOut) {
+          console.log('[WA-Gateway] Explicitly logged out from WhatsApp. Resetting auth_info folder...');
+          clearAuthFolder();
+          currentQrBase64 = null;
+          setTimeout(() => connectToWhatsApp(), 2000);
+        } else {
+          console.log('[WA-Gateway] Connection dropped. Auto-reconnecting in 3s...');
+          setTimeout(() => connectToWhatsApp(), 3000);
+        }
+      }
+
+      if (connection === 'open') {
+        isConnected = true;
+        isInitializing = false;
+        currentQrBase64 = null;
+        console.log('[WA-Gateway] WhatsApp connected successfully!');
+
+        if (messageQueue.length > 0) {
+          console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
+          await flushQueue();
+        }
       }
     });
 
-    client.on('ready', async () => {
-      isConnected = true;
-      isInitializing = false;
-      currentQrBase64 = null;
-      console.log('[WA-Gateway] WhatsApp Web Client is READY!');
-
-      if (messageQueue.length > 0) {
-        console.log(`[WA-Gateway] Flushing ${messageQueue.length} queued messages...`);
-        await flushQueue();
-      }
-    });
-
-    client.on('authenticated', () => {
-      console.log('[WA-Gateway] Session authenticated successfully.');
-      isConnected = true;
-      isInitializing = false;
-      currentQrBase64 = null;
-    });
-
-    client.on('remote_session_saved', () => {
-      console.log('[WA-Gateway] Remote session successfully saved to MongoDB!');
-    });
-
-    client.on('auth_failure', async (msg) => {
-      console.error('[WA-Gateway] Auth failure:', msg);
-      isConnected = false;
-      isInitializing = false;
-      currentQrBase64 = null;
-      await clearSessionData();
-      scheduleInit(3000);
-    });
-
-    client.on('disconnected', (reason) => {
-      console.log('[WA-Gateway] Client disconnected:', reason);
-      isConnected = false;
-      isInitializing = false;
-      currentQrBase64 = null;
-      scheduleInit(3000);
-    });
-
-    await client.initialize();
-    isInitializing = false;
   } catch (err) {
-    console.error('[WA-Gateway] Error initializing client:', err.message);
+    console.error('[WA-Gateway] Socket initialization error:', err.message);
     isConnected = false;
     isInitializing = false;
-    scheduleInit(5000);
+    clearAuthFolder();
+    setTimeout(() => connectToWhatsApp(), 4000);
   }
 }
 
-// ─── Queue Processing ─────────────────────────────────────────────────────────
+// ─── Queue Flush ──────────────────────────────────────────────────────────────
 async function flushQueue() {
   const toSend = [...messageQueue];
   messageQueue.length = 0;
@@ -247,6 +168,7 @@ async function flushQueue() {
       console.log(`[WA-Gateway] Queued message sent to ${item.to}`);
     } catch (err) {
       console.error(`[WA-Gateway] Failed to send queued msg to ${item.to}:`, err.message);
+      messageQueue.push(item);
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
@@ -254,39 +176,30 @@ async function flushQueue() {
 
 // ─── Core Send ────────────────────────────────────────────────────────────────
 async function sendWhatsApp(toPhone, message) {
-  if (!client || !isConnected) throw new Error('WhatsApp client not ready');
-
-  let num = toPhone.replace(/[^0-9]/g, '');
-  if (num.length === 10) num = '91' + num;
-
-  const chatId = num + '@c.us';
-  await client.sendMessage(chatId, message);
+  if (!sock || !isConnected) throw new Error('WhatsApp socket not ready');
+  const num = formatPhoneNumber(toPhone);
+  const jid = num + '@s.whatsapp.net';
+  console.log(`[WA-Gateway] Sending to JID: ${jid}`);
+  await sock.sendMessage(jid, { text: message });
 }
 
 // ─── REST API ─────────────────────────────────────────────────────────────────
 
-// GET /status — Returns connection status + QR code if disconnected
+// GET /status
 app.get('/status', requireApiKey, (req, res) => {
-  let activeStatus = isConnected;
-  if (!activeStatus && client && client.info) {
-    activeStatus = true;
-    isConnected = true;
-    currentQrBase64 = null;
-  }
   res.json({
-    connected: activeStatus,
-    qrCode: activeStatus ? null : currentQrBase64,
+    connected: isConnected,
+    qrCode: isConnected ? null : currentQrBase64,
     queueLength: messageQueue.length,
   });
 });
 
-// GET /health — Public health check (no API key needed)
-app.get('/health', (req, res) => {
-  let activeStatus = isConnected || (client && client.info ? true : false);
-  res.json({ status: 'ok', connected: activeStatus });
+// GET /health — Public (for UptimeRobot ping)
+app.all('/health', (req, res) => {
+  res.json({ status: 'ok', connected: isConnected });
 });
 
-// POST /send — Send a WhatsApp message or queue it
+// POST /send
 app.post('/send', requireApiKey, async (req, res) => {
   const { to, message } = req.body;
   if (!to || !message) {
@@ -318,12 +231,12 @@ app.post('/send', requireApiKey, async (req, res) => {
   }
 });
 
-// GET /queue — View queued messages
+// GET /queue
 app.get('/queue', requireApiKey, (req, res) => {
   res.json({ queueLength: messageQueue.length, queue: messageQueue });
 });
 
-// POST /flush-queue — Manually trigger queue flush
+// POST /flush-queue
 app.post('/flush-queue', requireApiKey, async (req, res) => {
   if (!isConnected) {
     return res.status(400).json({ error: 'WhatsApp is not connected.' });
@@ -333,35 +246,35 @@ app.post('/flush-queue', requireApiKey, async (req, res) => {
   res.json({ status: 'FLUSHED', messagesFlushed: count });
 });
 
-// POST /reconnect — Clear session and restart client
+// POST /reconnect — Wipe session and generate fresh QR
 app.post('/reconnect', requireApiKey, async (req, res) => {
-  try {
-    if (client) await client.destroy();
-  } catch (_) {}
-
-  isConnected = false;
   isInitializing = false;
+  isConnected = false;
   currentQrBase64 = null;
-  await clearSessionData();
 
-  setTimeout(() => initializeClient(), 1000);
-  res.json({ status: 'RECONNECTING', message: 'Session cleared. Generating new QR code...' });
+  if (sock) {
+    try { sock.end(); } catch (_) {}
+    sock = null;
+  }
+
+  clearAuthFolder();
+  setTimeout(() => connectToWhatsApp(), 1000);
+  res.json({ status: 'RECONNECTING', message: 'Session cleared. Fresh QR code is being generated...' });
 });
 
-// POST /logout — Log out and clear session
+// POST /logout
 app.post('/logout', requireApiKey, async (req, res) => {
   try {
-    if (client) await client.logout();
+    if (sock) await sock.logout();
   } catch (_) {}
   isConnected = false;
   currentQrBase64 = null;
-  await clearSessionData();
+  clearAuthFolder();
   res.json({ status: 'LOGGED_OUT' });
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`[WA-Gateway] Server running on port ${PORT}`);
-  await startDatabase();
-  initializeClient();
+  connectToWhatsApp();
 });
