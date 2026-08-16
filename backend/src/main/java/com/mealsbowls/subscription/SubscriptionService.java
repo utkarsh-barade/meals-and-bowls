@@ -26,12 +26,48 @@ public class SubscriptionService {
         return planRepository.findAll();
     }
 
-    public Subscription assignPlan(Long customerId, Long planId) {
+    public Subscription assignPlan(Long customerId, AssignPlanRequest request) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
 
-        Plan plan = planRepository.findById(planId)
-                .orElseThrow(() -> new AppException("Plan not found", HttpStatus.NOT_FOUND));
+        String planName;
+        Double planPrice;
+        int totalMeals;
+        int validityDays;
+        Long planId;
+
+        if (Boolean.TRUE.equals(request.getIsCustom())) {
+            if (request.getCustomName() == null || request.getCustomName().trim().isEmpty()) {
+                throw new AppException("Custom plan name is required", HttpStatus.BAD_REQUEST);
+            }
+            if (request.getCustomTotalMeals() == null || request.getCustomTotalMeals() <= 0) {
+                throw new AppException("Custom plan total meals must be greater than 0", HttpStatus.BAD_REQUEST);
+            }
+            if (request.getCustomValidityDays() == null || request.getCustomValidityDays() <= 0) {
+                throw new AppException("Custom plan validity days must be greater than 0", HttpStatus.BAD_REQUEST);
+            }
+            if (request.getCustomPrice() == null || request.getCustomPrice() < 0) {
+                throw new AppException("Custom plan price must be positive", HttpStatus.BAD_REQUEST);
+            }
+            
+            planId = 0L; // placeholder for custom plan
+            planName = request.getCustomName().trim();
+            planPrice = request.getCustomPrice();
+            totalMeals = request.getCustomTotalMeals();
+            validityDays = request.getCustomValidityDays();
+        } else {
+            if (request.getPlanId() == null) {
+                throw new AppException("Plan ID is required", HttpStatus.BAD_REQUEST);
+            }
+            Plan plan = planRepository.findById(request.getPlanId())
+                    .orElseThrow(() -> new AppException("Plan not found", HttpStatus.NOT_FOUND));
+            
+            planId = plan.getId();
+            planName = plan.getName();
+            planPrice = plan.getPrice();
+            totalMeals = plan.getTotalMeals();
+            validityDays = plan.getValidityDays();
+        }
 
         // Check for active subscription
         subscriptionRepository.findByCustomerIdAndStatus(customerId, SubscriptionStatus.ACTIVE)
@@ -47,11 +83,11 @@ public class SubscriptionService {
         subscription.setId(sequenceGeneratorService.generateSequence(Subscription.class.getSimpleName()));
         subscription.setCustomerId(customerId);
         subscription.setPlanId(planId);
-        subscription.setPlanName(plan.getName());
-        subscription.setPlanPrice(plan.getPrice());
+        subscription.setPlanName(planName);
+        subscription.setPlanPrice(planPrice);
         subscription.setStartDate(LocalDate.now());
-        subscription.setExpiryDate(LocalDate.now().plusDays(plan.getValidityDays()));
-        subscription.setMealsTotal(plan.getTotalMeals());
+        subscription.setExpiryDate(LocalDate.now().plusDays(validityDays));
+        subscription.setMealsTotal(totalMeals);
         subscription.setMealsConsumed(0);
         subscription.setStatus(SubscriptionStatus.ACTIVE);
 
@@ -63,16 +99,16 @@ public class SubscriptionService {
             msg = "🎉 Meals & Bowls\n\n" +
                   "Hello " + customer.getFullName() + ",\n\n" +
                   "Your subscription has been renewed successfully.\n\n" +
-                  "Plan: " + plan.getName() + "\n" +
-                  "Meals: " + plan.getTotalMeals() + "\n" +
+                  "Plan: " + saved.getPlanName() + "\n" +
+                  "Meals: " + saved.getMealsTotal() + "\n" +
                   "Valid Till: " + saved.getExpiryDate() + "\n\n" +
                   "Thank you for renewing with us.";
         } else {
             msg = "🎉 Welcome to Meals & Bowls\n\n" +
                   "Hello " + customer.getFullName() + ",\n\n" +
                   "Your subscription has been activated successfully.\n\n" +
-                  "Plan: " + plan.getName() + "\n" +
-                  "Total Meals: " + plan.getTotalMeals() + "\n" +
+                  "Plan: " + saved.getPlanName() + "\n" +
+                  "Total Meals: " + saved.getMealsTotal() + "\n" +
                   "Start Date: " + saved.getStartDate() + "\n" +
                   "Expiry Date: " + saved.getExpiryDate() + "\n\n" +
                   "Enjoy your meals!";

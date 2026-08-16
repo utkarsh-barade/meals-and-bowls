@@ -28,7 +28,7 @@ public class SubscriptionController {
     public ResponseEntity<ApiResponse<SubscriptionDTO>> assignPlan(
             @PathVariable Long customerId,
             @Valid @RequestBody AssignPlanRequest request) {
-        Subscription subscription = subscriptionService.assignPlan(customerId, request.getPlanId());
+        Subscription subscription = subscriptionService.assignPlan(customerId, request);
         return ResponseEntity.ok(ApiResponse.success("Plan assigned successfully", mapToSubscriptionDTO(subscription)));
     }
     

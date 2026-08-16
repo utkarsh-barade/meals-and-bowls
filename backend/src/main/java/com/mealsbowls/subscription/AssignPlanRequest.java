@@ -1,10 +1,14 @@
 package com.mealsbowls.subscription;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
 public class AssignPlanRequest {
-    @NotNull(message = "Plan ID is required")
     private Long planId;
+    
+    private Boolean isCustom;
+    private String customName;
+    private Integer customTotalMeals;
+    private Integer customValidityDays;
+    private Double customPrice;
 }

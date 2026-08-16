@@ -9,7 +9,7 @@ export const subscriptionService = {
     return axios.get(`/api/admin/customers/${customerId}/subscriptions/active`);
   },
 
-  assignPlan: async (customerId, planId) => {
-    return axios.post(`/api/admin/customers/${customerId}/subscriptions`, { planId });
+  assignPlan: async (customerId, payload) => {
+    return axios.post(`/api/admin/customers/${customerId}/subscriptions`, payload);
   }
 };
