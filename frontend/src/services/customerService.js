@@ -37,4 +37,14 @@ export const customerService = {
     const response = await axiosInstance.delete(`/api/admin/customers/${id}`);
     return response.data;
   },
+
+  sendOnboarding: async (id) => {
+    const response = await axiosInstance.post(`/api/admin/customers/${id}/send-onboarding`);
+    return response.data;
+  },
+
+  sendOnboardingAll: async () => {
+    const response = await axiosInstance.post('/api/admin/customers/send-onboarding-all');
+    return response.data;
+  },
 };

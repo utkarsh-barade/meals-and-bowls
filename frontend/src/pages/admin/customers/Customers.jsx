@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card';
 import Table from '@/components/ui/Table';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { Search, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, Send } from 'lucide-react';
 import { formatDate } from '@/utils/dateUtils';
 
 export default function Customers() {
@@ -21,6 +21,16 @@ export default function Customers() {
     queryKey: ['customers', search, page, size],
     queryFn: () => customerService.getCustomers(search, page, size),
     keepPreviousData: true,
+  });
+
+  const { mutate: sendOnboardingAll, isPending: isSendingOnboarding } = useMutation({
+    mutationFn: customerService.sendOnboardingAll,
+    onSuccess: (data) => {
+      alert(data?.message || 'Onboarding WhatsApp messages dispatched successfully!');
+    },
+    onError: (error) => {
+      alert(error.response?.data?.message || 'Failed to send onboarding messages');
+    },
   });
 
   const { mutate: deleteCustomer } = useMutation({
@@ -59,6 +69,12 @@ export default function Customers() {
     }
   };
 
+  const handleSendOnboardingAll = () => {
+    if (window.confirm('Are you sure you want to send onboarding WhatsApp messages with login details to all active customers?')) {
+      sendOnboardingAll();
+    }
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     setSearch(searchInput);
@@ -78,10 +94,21 @@ export default function Customers() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-page-title text-text-primary">Customers</h1>
-        <Button onClick={() => navigate('/admin/customers/new')} className="w-full sm:w-auto flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Customer
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleSendOnboardingAll}
+            disabled={isSendingOnboarding}
+            className="w-full sm:w-auto flex items-center justify-center gap-2"
+          >
+            <Send className="w-4 h-4 text-primary" />
+            {isSendingOnboarding ? 'Sending Messages...' : 'Send Onboarding Messages'}
+          </Button>
+          <Button onClick={() => navigate('/admin/customers/new')} className="w-full sm:w-auto flex items-center justify-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       <Card>

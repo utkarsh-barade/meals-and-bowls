@@ -84,4 +84,16 @@ public class CustomerController {
         CustomerDto updatedCustomer = customerService.uploadPhoto(id, file);
         return ResponseEntity.ok(ApiResponse.success("Photo uploaded successfully", updatedCustomer));
     }
+
+    @PostMapping("/{id}/send-onboarding")
+    public ResponseEntity<ApiResponse<Void>> sendOnboarding(@PathVariable Long id) {
+        customerService.sendOnboardingNotification(id);
+        return ResponseEntity.ok(ApiResponse.success("Onboarding WhatsApp notification sent successfully", null));
+    }
+
+    @PostMapping("/send-onboarding-all")
+    public ResponseEntity<ApiResponse<Void>> sendOnboardingAll() {
+        int count = customerService.sendOnboardingNotificationToAll();
+        return ResponseEntity.ok(ApiResponse.success("Onboarding notifications dispatched to " + count + " customers", null));
+    }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { customerService } from '@/services/customerService';
 import Card from '@/components/ui/Card';
 import { ArrowLeft, User, Phone, Calendar, CreditCard, Activity } from 'lucide-react';
@@ -24,6 +24,16 @@ export default function ViewCustomer() {
     queryFn: () => subscriptionService.getActiveSubscription(id),
   });
 
+  const { mutate: sendOnboarding, isPending: isSendingOnboarding } = useMutation({
+    mutationFn: () => customerService.sendOnboarding(id),
+    onSuccess: (data) => {
+      alert(data?.message || 'Onboarding WhatsApp notification sent successfully!');
+    },
+    onError: (error) => {
+      alert(error.response?.data?.message || 'Failed to send onboarding message');
+    },
+  });
+
   if (isLoading) return <div className="p-8 text-center text-text-secondary">Loading...</div>;
   if (isError) return <div className="p-8 text-center text-danger">Failed to load customer</div>;
 
@@ -32,16 +42,29 @@ export default function ViewCustomer() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" onClick={() => navigate('/admin/customers')} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-page-title text-text-primary">Customer Profile</h1>
         </div>
-        <Button onClick={() => navigate(`/admin/customers/${id}/edit`)}>
-          Edit Details
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              if (window.confirm(`Send onboarding WhatsApp message to ${customer.fullName}?`)) {
+                sendOnboarding();
+              }
+            }}
+            disabled={isSendingOnboarding}
+          >
+            {isSendingOnboarding ? 'Sending...' : 'Send WhatsApp Onboarding'}
+          </Button>
+          <Button onClick={() => navigate(`/admin/customers/${id}/edit`)}>
+            Edit Details
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

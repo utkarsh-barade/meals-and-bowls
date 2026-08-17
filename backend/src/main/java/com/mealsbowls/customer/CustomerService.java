@@ -35,6 +35,10 @@ public class CustomerService {
     private final PaymentRepository paymentRepository;
     private final MealAuditLogRepository mealAuditLogRepository;
     private final com.mealsbowls.common.SequenceGeneratorService sequenceGeneratorService;
+    private final com.mealsbowls.notification.NotificationDispatcherService notificationService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:${FRONTEND_URL:http://localhost:5175}}")
+    private String frontendUrl;
 
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
 
@@ -185,5 +189,64 @@ public class CustomerService {
         } catch (IOException ex) {
             throw new AppException("Could not store file. Please try again!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    public void sendOnboardingNotification(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new AppException("Customer not found", HttpStatus.NOT_FOUND));
+
+        com.mealsbowls.subscription.Subscription sub = subscriptionRepository.findByCustomerIdAndStatus(customer.getId(), com.mealsbowls.subscription.SubscriptionStatus.ACTIVE)
+                .orElse(null);
+
+        String planName = sub != null ? sub.getPlanName() : "Active Plan";
+        int mealsTotal = sub != null ? sub.getMealsTotal() : 0;
+        int mealsConsumed = sub != null ? sub.getMealsConsumed() : 0;
+        int mealsRemaining = sub != null ? sub.getMealsRemaining() : 0;
+        String startDate = sub != null && sub.getStartDate() != null ? sub.getStartDate().toString() : java.time.LocalDate.now().toString();
+        String expiryDate = sub != null && sub.getExpiryDate() != null ? sub.getExpiryDate().toString() : java.time.LocalDate.now().plusDays(30).toString();
+
+        String firstName = customer.getFullName().trim().split("\\s+")[0].toLowerCase();
+        String password = firstName + "01";
+
+        String baseLink = frontendUrl != null ? frontendUrl.split(",")[0].trim() : "http://localhost:5175";
+
+        String msg = "🎉 *Welcome to Meals & Bowls!* 🍲\n\n" +
+                "Hello *" + customer.getFullName() + "*,\n" +
+                "Aapka account aur meal subscription successfully activate kar diya gaya hai!\n\n" +
+                "📋 *Aapke Subscription Details:*\n" +
+                "━━━━━━━━━━━━━━━━━━━━\n" +
+                "📦 *Plan:* " + planName + "\n" +
+                "🍲 *Total Meals:* " + mealsTotal + "\n" +
+                "🍽️ *Meals Served:* " + mealsConsumed + "\n" +
+                "🥗 *Meals Remaining:* " + mealsRemaining + "\n" +
+                "📅 *Start Date:* " + startDate + "\n" +
+                "⏳ *Valid Till:* " + expiryDate + "\n\n" +
+                "🔐 *Aapke Login Credentials:*\n" +
+                "━━━━━━━━━━━━━━━━━━━━\n" +
+                "📱 *Mobile Number:* " + customer.getMobileNumber() + "\n" +
+                "🔑 *Password:* " + password + "\n" +
+                "🌐 *Login Portal:* " + baseLink + "/login\n\n" +
+                "💡 *Dashboard par aap:*\n" +
+                "• Daily meal history & consumption check kar sakte hain\n" +
+                "• Remaining balance & validity track kar sakte hain\n\n" +
+                "Enjoy your fresh home-style meals! 😋\n" +
+                "*Support ke liye aap is number par reply kar sakte hain.*";
+
+        notificationService.sendNotification(customer.getMobileNumber(), msg);
+    }
+
+    public int sendOnboardingNotificationToAll() {
+        List<Customer> customers = customerRepository.findByStatusOrderByCreatedAtDesc(CustomerStatus.ACTIVE);
+        int count = 0;
+        for (Customer customer : customers) {
+            try {
+                sendOnboardingNotification(customer.getId());
+                count++;
+                Thread.sleep(1500); // 1.5s delay to prevent WhatsApp rate limits
+            } catch (Exception e) {
+                // proceed
+            }
+        }
+        return count;
     }
 }
