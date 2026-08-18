@@ -16,12 +16,12 @@ public class SubscriptionExpiryTask {
 
     private final SubscriptionRepository subscriptionRepository;
 
-    @Scheduled(cron = "0 0 0 * * *") // Run at midnight every day
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Kolkata") // Run at midnight IST every day
     @Transactional
     public void expireOldSubscriptions() {
         log.info("Running scheduled task to expire old subscriptions");
         List<Subscription> activeSubscriptions = subscriptionRepository.findByStatus(SubscriptionStatus.ACTIVE);
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"));
 
         int expiredCount = 0;
         for (Subscription sub : activeSubscriptions) {

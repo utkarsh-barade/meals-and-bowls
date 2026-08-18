@@ -21,11 +21,11 @@ public class NotificationScheduler {
     private final CustomerRepository customerRepository;
     private final NotificationDispatcherService notificationService;
 
-    // Run every day at 10 AM (0 0 10 * * ?)
-    @Scheduled(cron = "0 0 10 * * ?")
+    // Run every day at 10 AM IST (0 0 10 * * ?)
+    @Scheduled(cron = "0 0 10 * * ?", zone = "Asia/Kolkata")
     public void sendPlanExpiryReminders() {
         log.info("Running daily Plan Expiry Reminder job...");
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalDate tomorrow = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).plusDays(1);
         
         List<Subscription> activeSubscriptions = subscriptionRepository.findAll();
         

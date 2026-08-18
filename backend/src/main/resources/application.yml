@@ -1,6 +1,8 @@
 spring:
   application:
     name: meals-bowls
+  jackson:
+    time-zone: Asia/Kolkata
 
 
   data:

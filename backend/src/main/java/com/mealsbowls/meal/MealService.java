@@ -113,7 +113,7 @@ public class MealService {
         log.setMealDate(date);
         log.setMealType(type);
         log.setAction(MealAction.SERVED);
-        log.setCreatedAt(java.time.LocalDateTime.now());
+        log.setCreatedAt(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
         mealAuditLogRepository.save(log); // 1 Atlas call
 
         activeSub.setMealsConsumed(activeSub.getMealsConsumed() + 1);
@@ -123,7 +123,8 @@ public class MealService {
         subscriptionRepository.save(activeSub); // 1 Atlas call
 
         // Fire WhatsApp notification async — zero blocking
-        String timeStr = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a"));
+        java.time.ZoneId istZone = java.time.ZoneId.of("Asia/Kolkata");
+        String timeStr = java.time.LocalTime.now(istZone).format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.ENGLISH));
         String mealTypeStr = type.toString().substring(0, 1).toUpperCase() + type.toString().substring(1).toLowerCase();
 
         String msg = "🍽️ Meals & Bowls\n\n" +
