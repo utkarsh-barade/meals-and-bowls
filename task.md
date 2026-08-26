@@ -11,5 +11,12 @@
   - `[x]` Update `AssignPlanModal.jsx` to render a tabbed interface (Standard vs Custom Plan) and submit form data
 - `[x]` Verify Integration & Manual Testing
   - `[x]` Verify standard plan assignment still works
-  - `[x]` Verify custom plan assignment works and saves correct details
-  - `[x]` CORS and dev server ports shifted to 5175
+  - `[x]` Google Sheets Automated Daily Backup & Admin UI
+  - `[x]` Add Google Sheets API dependencies (`pom.xml` & `application.yml`)
+  - `[x]` Create `BackupLog.java` and `BackupConfig.java` MongoDB entities & repositories
+  - `[x]` Implement `GoogleSheetsService.java` for exporting Customers, Subscriptions, and Payments tabs to Google Sheets
+  - `[x]` Create `BackupScheduler.java` `@Scheduled(cron = "0 0 0 * * ?")` running automatically at 12:00 AM Midnight IST
+  - `[x]` Add `BackupController.java` with status, logs, trigger, and config REST endpoints
+  - `[x]` Create `backupService.js` frontend API integration
+  - `[x]` Build `BackupManagement.jsx` page with Status cards, "Backup Now" trigger, Google Sheet ID config form, and History logs table
+  - `[x]` Register `/admin/backup` route in `routes/index.jsx` and add "Data Backup" link to Admin Sidebar (`Sidebar.jsx`)

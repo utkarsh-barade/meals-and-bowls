@@ -5,11 +5,13 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { CheckCircle, XCircle, RefreshCw, Send, Wifi, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cn } from '@/utils/cn';
 
 const whatsappService = {
   getStatus: () => axios.get('/api/admin/whatsapp/status'),
   flushQueue: () => axios.post('/api/admin/whatsapp/flush-queue'),
   reconnect: () => axios.post('/api/admin/whatsapp/reconnect'),
+  toggleNotifications: (enabled) => axios.post(`/api/admin/whatsapp/toggle-notifications?enabled=${enabled}`),
 };
 
 export default function WhatsAppStatus() {
@@ -19,6 +21,17 @@ export default function WhatsAppStatus() {
     queryKey: ['wa-gateway-status'],
     queryFn: whatsappService.getStatus,
     refetchInterval: 10000, // Poll every 10 seconds gently
+  });
+
+  const { mutate: toggleNotifications, isPending: isToggling } = useMutation({
+    mutationFn: (enabled) => whatsappService.toggleNotifications(enabled),
+    onSuccess: (res) => {
+      toast.success(res.data?.data?.message || 'Notification settings updated');
+      queryClient.invalidateQueries({ queryKey: ['wa-gateway-status'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to toggle notifications: ' + (err.response?.data?.message || err.message));
+    },
   });
 
   const { mutate: flushQueue, isPending: isFlushing } = useMutation({
@@ -50,6 +63,7 @@ export default function WhatsAppStatus() {
   const qrCode = statusData?.qrCode;
   const queueLength = statusData?.queueLength ?? 0;
   const configured = statusData?.configured !== false;
+  const notificationsEnabled = statusData?.notificationsEnabled !== false;
   const error = statusData?.error;
 
   return (
@@ -174,6 +188,46 @@ export default function WhatsAppStatus() {
               )}
             </div>
           )}
+        </Card.Body>
+      </Card>
+
+      {/* Master Notification Toggle Card */}
+      <Card>
+        <Card.Body>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h2 className="text-section-title text-text-primary font-semibold flex items-center gap-2">
+                <span>WhatsApp Automated Notifications</span>
+                <span
+                  className={cn(
+                    'px-2.5 py-0.5 rounded-full text-caption font-bold uppercase',
+                    notificationsEnabled ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
+                  )}
+                >
+                  {notificationsEnabled ? 'ACTIVE (SENDING)' : 'MUTED (OFF)'}
+                </span>
+              </h2>
+              <p className="text-small text-text-secondary">
+                Turn OFF automated WhatsApp messages without disconnecting your active WhatsApp session.
+              </p>
+            </div>
+
+            <button
+              onClick={() => toggleNotifications(!notificationsEnabled)}
+              disabled={isToggling}
+              className={cn(
+                'relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+                notificationsEnabled ? 'bg-success' : 'bg-gray-300'
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                  notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
+                )}
+              />
+            </button>
+          </div>
         </Card.Body>
       </Card>
 

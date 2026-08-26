@@ -23,6 +23,7 @@ import MealHistory from '@/pages/admin/meal-history/MealHistory';
 import Payments from '@/pages/admin/payments/Payments';
 import Reports from '@/pages/admin/reports/Reports';
 import WhatsAppStatus from '@/pages/admin/whatsapp/WhatsAppStatus';
+import BackupManagement from '@/pages/admin/backup/BackupManagement';
 
 // Customer pages
 import CustomerDashboard from '@/pages/customer/dashboard/CustomerDashboard';
@@ -71,6 +72,7 @@ const router = createBrowserRouter([
       { path: 'payments',        element: <Payments /> },
       { path: 'reports',         element: <Reports /> },
       { path: 'whatsapp',        element: <WhatsAppStatus /> },
+      { path: 'backup',          element: <BackupManagement /> },
     ],
   },
 

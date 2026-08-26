@@ -13,18 +13,38 @@ import java.util.Map;
 public class WhatsAppGatewayController {
 
     private final WhatsAppGatewayService whatsAppGatewayService;
+    private final NotificationDispatcherService notificationDispatcherService;
 
     /**
      * GET /api/admin/whatsapp/status
-     * Returns gateway connection status and QR code if disconnected.
+     * Returns gateway connection status, QR code, and notifications toggle state.
      */
     @GetMapping("/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatus() {
         Map<String, Object> status = whatsAppGatewayService.getStatus();
+        status.put("notificationsEnabled", notificationDispatcherService.isNotificationsEnabled());
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .success(true)
                 .message("WhatsApp Gateway status fetched")
                 .data(status)
+                .build());
+    }
+
+    /**
+     * POST /api/admin/whatsapp/toggle-notifications
+     * Toggle WhatsApp notifications ON/OFF without disconnecting WhatsApp session.
+     */
+    @PostMapping("/toggle-notifications")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> toggleNotifications(@RequestParam boolean enabled) {
+        notificationDispatcherService.setNotificationsEnabled(enabled);
+        Map<String, Object> data = Map.of(
+                "notificationsEnabled", notificationDispatcherService.isNotificationsEnabled(),
+                "message", enabled ? "WhatsApp notifications ENABLED" : "WhatsApp notifications MUTED (OFF)"
+        );
+        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                .success(true)
+                .message("Notification toggle updated")
+                .data(data)
                 .build());
     }
 

@@ -8,9 +8,11 @@
 # WhatsApp session data
 **/auth_info/
 
-# Environment files
+# Environment & Secret files
 **/.env
 **/.env.local
+**/credentials.json
+credentials.json
 
 # Zip files & docs
 *.zip

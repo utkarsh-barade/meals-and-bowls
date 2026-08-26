@@ -1,93 +1,102 @@
-# Implementation Plan — Add Customized Plan Feature
+# Implementation Plan: Google Sheets Daily Backup & Admin UI
 
-This plan details the implementation of a **Customized Plan** feature, enabling the admin to assign a subscription to a customer with a custom plan name, price, number of meals, and validity days. 
+Set up an automated **Daily 12:00 AM Data Backup** from MongoDB to Google Sheets with an interactive **Admin UI** to view backup history, trigger instant manual backups, and configure Google Sheets settings.
 
-This change is designed to be **fully backward-compatible**, meaning the existing standard plans flow will continue to work without any modifications to its user experience or backend database records.
+---
+
+## Architecture & Flow
+
+```
+[MongoDB Database] 
+       │
+       ▼
+ [Spring Boot Backend] ──(Raat 12:00 AM Cron @Scheduled / Manual UI Trigger)──► [Google Sheets API]
+       │                                                                               │
+       ▼                                                                               ▼
+ [Backup History DB Collection]                                                [Google Sheet Dashboard]
+       │
+       ▼
+ [Admin React UI (/admin/backup)] ◄── Status, Instant "Backup Now", Direct Sheet Link
+```
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Google Cloud Service Account Key Needed**: To write data to Google Sheets automatically, a Google Cloud Service Account JSON key is required. The bot email from the credentials must be added as an **Editor** to your Google Sheet.
+
+> [!NOTE]
+> Backup runs automatically every night at **12:00 AM Midnight IST** (`0 0 0 * * ?` cron). Admin can also click **"Backup Now"** anytime from the UI.
 
 ---
 
 ## Proposed Changes
 
-### Backend (Spring Boot)
+### Backend (`/backend`)
 
-#### [MODIFY] [AssignPlanRequest.java](file:///e:/Downloads/meals-bowls/backend/src/main/java/com/mealsbowls/subscription/AssignPlanRequest.java)
-- Remove `@NotNull` constraint on `planId` to allow custom plan assignments.
-- Add fields for custom plans:
-  - `isCustom` (Boolean)
-  - `customName` (String)
-  - `customTotalMeals` (Integer)
-  - `customValidityDays` (Integer)
-  - `customPrice` (Double)
+#### [MODIFY] `pom.xml`
+- Add Google Sheets API & Google Drive API client dependencies (`google-api-services-sheets`, `google-auth-library-oauth2-http`).
 
-```java
-package com.mealsbowls.subscription;
+#### [MODIFY] `application.yml`
+- Add backup configuration properties:
+  ```yaml
+  app:
+    backup:
+      google-sheet-id: ${GOOGLE_SHEET_ID:}
+      credentials-path: ${GOOGLE_CREDENTIALS_PATH:credentials.json}
+      enabled: ${BACKUP_ENABLED:true}
+      cron: "0 0 0 * * ?"
+  ```
 
-import lombok.Data;
+#### [NEW] `BackupLog.java` (Entity)
+- MongoDB collection to record backup history:
+  - `id`, `timestamp`, `triggerType` (AUTOMATIC / MANUAL), `status` (SUCCESS / FAILED), `totalRecords`, `details`, `sheetUrl`.
 
-@Data
-public class AssignPlanRequest {
-    private Long planId; // Nullable if isCustom is true
-    
-    private Boolean isCustom;
-    private String customName;
-    private Integer customTotalMeals;
-    private Integer customValidityDays;
-    private Double customPrice;
-}
-```
+#### [NEW] `GoogleSheetsService.java`
+- Handles authentication with Google Sheets API using Service Account.
+- Exports MongoDB collections (`Users`, `Subscriptions`, `MealLogs`, `Payments`) into structured tabular sheets:
+  - Sheet Tab 1: `Customers & Subscriptions`
+  - Sheet Tab 2: `Meal History`
+  - Sheet Tab 3: `Payments & Transactions`
 
-#### [MODIFY] [SubscriptionService.java](file:///e:/Downloads/meals-bowls/backend/src/main/java/com/mealsbowls/subscription/SubscriptionService.java)
-- Update `assignPlan(Long customerId, Long planId)` signature to `assignPlan(Long customerId, AssignPlanRequest request)`.
-- If `request.getIsCustom()` is `true`:
-  - Validate that `customName`, `customTotalMeals`, `customValidityDays`, and `customPrice` are not null or empty.
-  - Set `planId` to `null` (or a default placeholder like `0L`).
-  - Set the subscription properties (`planName`, `planPrice`, `mealsTotal`, `expiryDate`) directly from the custom request fields.
-- If `request.getIsCustom()` is false/null:
-  - Fetch the plan from `planRepository` as before, throw an exception if not found, and set properties from the standard plan.
-- Update the WhatsApp message formatting block to fetch details from the `saved` subscription entity (e.g. `saved.getPlanName()`, `saved.getMealsTotal()`) instead of the `plan` variable. This ensures WhatsApp notifications work dynamically for both standard and custom plans.
+#### [NEW] `BackupScheduler.java`
+- Spring `@Scheduled(cron = "0 0 0 * * ?")` trigger to run backup automatically every night at 12:00 AM.
 
-#### [MODIFY] [SubscriptionController.java](file:///e:/Downloads/meals-bowls/backend/src/main/java/com/mealsbowls/subscription/SubscriptionController.java)
-- Pass the entire `AssignPlanRequest` request object to `subscriptionService.assignPlan`.
+#### [NEW] `BackupController.java`
+- `GET /api/admin/backup/status` - Get last backup status and stats.
+- `GET /api/admin/backup/history` - Get list of past backup logs.
+- `POST /api/admin/backup/trigger` - Instant manual backup trigger.
+- `POST /api/admin/backup/settings` - Update Google Sheet ID and auto-backup toggles.
 
 ---
 
-### Frontend (React)
+### Frontend (`/frontend`)
 
-#### [MODIFY] [subscriptionService.js](file:///e:/Downloads/meals-bowls/frontend/src/services/subscriptionService.js)
-- Update `assignPlan(customerId, payload)` to accept a payload instead of a single `planId`.
-  ```javascript
-  assignPlan: async (customerId, payload) => {
-    return axios.post(`/api/admin/customers/${customerId}/subscriptions`, payload);
-  }
-  ```
+#### [NEW] `backupService.js`
+- API calls to backend endpoints: `getBackupStatus()`, `getBackupHistory()`, `triggerManualBackup()`, `updateBackupSettings()`.
 
-#### [MODIFY] [AssignPlanModal.jsx](file:///e:/Downloads/meals-bowls/frontend/src/pages/admin/customers/AssignPlanModal.jsx)
-- Add a tab header inside the modal: **"Standard Plans"** and **"Custom Plan"**.
-- Keep the existing scrollable list of plans under the **Standard Plans** tab.
-- Render a form under the **Custom Plan** tab with inputs:
-  - Plan Name (Text input)
-  - Price (₹) (Number input)
-  - Number of Meals (Number input)
-  - Validity (Days) (Number input)
-- Handle form state and basic validation (non-empty fields, positive values).
-- Call `assignPlan` with:
-  - `{ planId: selectedPlan }` for standard plans.
-  - `{ isCustom: true, customName, customPrice, customTotalMeals, customValidityDays }` for custom plans.
+#### [NEW] `BackupManagement.jsx` (`frontend/src/pages/admin/backup/BackupManagement.jsx`)
+- **Admin UI Page**:
+  - **Overview Banner**: Status indicator (Active/Inactive), Next scheduled backup time (12:00 AM), Last backup result badge.
+  - **Action Bar**: Instant ⚡ **"Backup Now"** button with loading spinner & toast notification.
+  - **Google Sheet Link**: Direct button 📊 **"Open Google Sheet"**.
+  - **Config Panel**: Input field for Google Sheet ID & Auto-backup toggle.
+  - **History Table**: List of past backups with timestamp, trigger mode (Auto/Manual), record counts, and status.
+
+#### [MODIFY] `AdminLayout.jsx` & `routes/index.jsx`
+- Add "Data Backup" menu item in Admin Sidebar navigation.
+- Add route `/admin/backup` rendering `BackupManagement.jsx`.
 
 ---
 
 ## Verification Plan
 
-### Automated Tests
-- Check compilation of backend using maven package or compiler verification command.
+### Automated / Backend Tests
+- Unit tests for `GoogleSheetsService` formatting and row generation.
+- Integration test for `BackupController` API endpoints.
 
 ### Manual Verification
-1. Open the Admin Panel and navigate to a Customer details page.
-2. Click **Assign Plan** to open the modal.
-3. Verify that standard plans still load and can be assigned as before.
-4. Switch to the **Custom Plan** tab.
-5. Enter custom details (e.g., Name: `Special Custom Plan`, Price: `1500`, Meals: `30`, Validity: `28`).
-6. Click **Assign Plan** and verify:
-   - A new active subscription is assigned with the custom values.
-   - A pending payment is created with the exact custom price.
-   - WhatsApp message sends the correct customized plan parameters.
+1. **Manual Backup Trigger**: Open Admin UI -> Click **"Backup Now"** -> Verify data appears immediately in Google Sheet tabs.
+2. **Scheduled Backup Verification**: Verify log entry created at 12:00 AM.
+3. **UI Feedback**: Verify error alerts if Google Sheet ID is invalid or access permission is missing.

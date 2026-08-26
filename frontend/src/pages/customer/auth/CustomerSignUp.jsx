@@ -61,9 +61,7 @@ export default function CustomerSignUp() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-2xl shadow-md mb-4">
-            <Utensils size={28} className="text-white" />
-          </div>
+          <img src="/logo.svg" alt="Meals & Bowls Logo" className="w-16 h-16 object-contain mx-auto mb-3" />
           <h1 className="text-page-title text-text-primary">Create Account</h1>
           <p className="text-small text-text-secondary mt-1">
             Register for an account to start your meal subscription.

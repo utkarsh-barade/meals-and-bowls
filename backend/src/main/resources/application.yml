@@ -38,6 +38,12 @@ app:
     url: ${WA_GATEWAY_URL:http://localhost:3001}
     api-key: ${WA_GATEWAY_API_KEY:meals-bowls-secret}
 
+  backup:
+    google-sheet-id: ${GOOGLE_SHEET_ID:}
+    credentials-path: ${GOOGLE_CREDENTIALS_PATH:credentials.json}
+    enabled: ${BACKUP_ENABLED:true}
+    cron: ${BACKUP_CRON:0 0 0 * * ?}
+
 logging:
   level:
     com.mealsbowls: DEBUG

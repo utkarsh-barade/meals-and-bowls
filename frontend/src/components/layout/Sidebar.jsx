@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   MessageSquare,
+  Database,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -26,6 +27,7 @@ const adminNavItems = [
   { label: 'Payments',             href: '/admin/payments',         icon: CreditCard },
   { label: 'Reports',              href: '/admin/reports',          icon: BarChart3 },
   { label: 'WhatsApp',             href: '/admin/whatsapp',         icon: MessageSquare, statusKey: true },
+  { label: 'Data Backup',          href: '/admin/backup',           icon: Database },
 ];
 
 const customerNavItems = [
@@ -81,9 +83,7 @@ export default function Sidebar({ role = 'ADMIN' }) {
         {/* Brand */}
         <div className="h-16 flex items-center px-6 border-b border-surface-border flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-              <Utensils size={16} className="text-white" />
-            </div>
+            <img src="/logo.svg" alt="Meals & Bowls Logo" className="w-9 h-9 object-contain flex-shrink-0" />
             <div className="leading-tight">
               <p className="text-small font-bold text-text-primary">Meals & Bowls</p>
               <p className="text-caption text-text-secondary">

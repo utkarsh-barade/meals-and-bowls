@@ -20,6 +20,8 @@ public class NotificationDispatcherService {
     @Value("${app.notification.provider:${NOTIFICATION_PROVIDER:WHATSAPP_GATEWAY}}")
     private String notificationProvider;
 
+    private volatile boolean notificationsEnabled = true;
+
     public NotificationDispatcherService(WhatsAppNotificationService whatsAppNotificationService,
                                          FastSmsNotificationService fastSmsNotificationService,
                                          WhatsAppGatewayService whatsAppGatewayService) {
@@ -28,8 +30,22 @@ public class NotificationDispatcherService {
         this.whatsAppGatewayService = whatsAppGatewayService;
     }
 
+    public boolean isNotificationsEnabled() {
+        return notificationsEnabled;
+    }
+
+    public void setNotificationsEnabled(boolean enabled) {
+        this.notificationsEnabled = enabled;
+        log.info("[Dispatcher] Master WhatsApp Notifications toggled to: {}", enabled ? "ENABLED" : "MUTED (OFF)");
+    }
+
     @Async
     public CompletableFuture<Void> sendNotification(String toPhoneNumber, String message) {
+        if (!notificationsEnabled) {
+            log.info("[Dispatcher] WhatsApp Notifications are MUTED by Admin. Skipping notification to {}. WA Gateway session stays CONNECTED.", toPhoneNumber);
+            return CompletableFuture.completedFuture(null);
+        }
+
         String provider = notificationProvider != null ? notificationProvider.trim().toUpperCase() : "WHATSAPP_GATEWAY";
 
         switch (provider) {
