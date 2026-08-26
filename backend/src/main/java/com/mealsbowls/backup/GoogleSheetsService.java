@@ -136,15 +136,41 @@ public class GoogleSheetsService {
     private Sheets getSheetsService() {
         try {
             InputStream in = null;
-            File credFile = new File(defaultCredentialsPath);
-            if (credFile.exists()) {
-                in = new FileInputStream(credFile);
+
+            // 1. Check environment variable GOOGLE_CREDENTIALS_JSON (ideal for Render/cloud deployments)
+            String envJson = System.getenv("GOOGLE_CREDENTIALS_JSON");
+            if (envJson != null && !envJson.isBlank()) {
+                log.info("Loading Google Credentials from GOOGLE_CREDENTIALS_JSON environment variable.");
+                in = new java.io.ByteArrayInputStream(envJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             } else {
-                in = getClass().getClassLoader().getResourceAsStream("credentials.json");
+                // 2. Check local file system paths
+                File[] possibleFiles = new File[]{
+                        new File(defaultCredentialsPath),
+                        new File("backend/" + defaultCredentialsPath),
+                        new File("../" + defaultCredentialsPath),
+                        new File("credentials.json"),
+                        new File("backend/credentials.json")
+                };
+
+                for (File f : possibleFiles) {
+                    if (f.exists() && f.isFile()) {
+                        log.info("Loading Google Credentials from file: {}", f.getAbsolutePath());
+                        in = new FileInputStream(f);
+                        break;
+                    }
+                }
+
+                // 3. Check classpath (packaged inside JAR/resources)
+                if (in == null) {
+                    in = getClass().getClassLoader().getResourceAsStream("credentials.json");
+                    if (in != null) {
+                        log.info("Loading Google Credentials from classpath: credentials.json");
+                    }
+                }
             }
 
             if (in == null) {
-                log.warn("Credentials file not found at: {}", defaultCredentialsPath);
+                log.warn("Google Credentials file (credentials.json) not found in working directory or classpath.");
                 return null;
             }
 
@@ -158,7 +184,7 @@ public class GoogleSheetsService {
             ).setApplicationName("MealsBowls-Backup").build();
 
         } catch (Exception e) {
-            log.error("Failed to initialize Google Sheets service: {}", e.getMessage());
+            log.error("Failed to initialize Google Sheets service: {}", e.getMessage(), e);
             return null;
         }
     }
